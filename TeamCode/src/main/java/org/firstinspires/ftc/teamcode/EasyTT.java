@@ -3,28 +3,46 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.vision.Class.ColorClassifier;
 
 @TeleOp(name = "TeleOpMain11/20", group = "Competition")
 public class EasyTT extends LinearOpMode {
 
-    // 定义电机变量
     private DcMotor leftFrontDrive = null;
     private DcMotor rightFrontDrive = null;
     private DcMotor leftBehindDrive = null;
     private DcMotor rightBehindDrive = null;
 
+    private DcMotor intakeMotor = null;
+    private CRServo holdServo = null;
+    private CRServo classifyServo = null;
+
+    private ColorClassifier vision = new ColorClassifier();
+    private boolean visionInitialized = false;
+
+    private boolean isIntakeActive = false;
+    private boolean lastLeftBumper = false;
     private IMU imu = null;
+
+    private double lastDetectedDirection = -1.0;
+    private boolean hasDetectedAnyColor = false;
 
     @Override
     public void runOpMode() {
+        // 1. 硬件映射
         leftFrontDrive  = hardwareMap.get(DcMotor.class, "LeftFrontDrive");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "RightFrontDrive");
         leftBehindDrive = hardwareMap.get(DcMotor.class, "LeftBehindDrive");
         rightBehindDrive = hardwareMap.get(DcMotor.class, "RightBehindDrive");
+
+        intakeMotor = hardwareMap.get(DcMotor.class, "Intake");
+        holdServo = hardwareMap.get(CRServo.class, "Hold");
+        classifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
 
         leftFrontDrive.setDirection(DcMotor.Direction.REVERSE);
         leftBehindDrive.setDirection(DcMotor.Direction.REVERSE);
@@ -36,19 +54,32 @@ public class EasyTT extends LinearOpMode {
         leftBehindDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightBehindDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
+        intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
                 RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,
                 RevHubOrientationOnRobot.UsbFacingDirection.UP));
-
         imu = hardwareMap.get(IMU.class, "imu");
         imu.initialize(parameters);
+
+        try {
+            vision.init(hardwareMap, "ClassifyCam", telemetry);
+            visionInitialized = true;
+            telemetry.addLine("Vision initialized successfully.");
+        } catch (Exception e) {
+            visionInitialized = false;
+            telemetry.addData("Vision Error", "Init Failed: " + e.getMessage());
+        }
 
         telemetry.addLine("机器人已初始化。按 'Start' 开始。");
         telemetry.update();
 
         waitForStart();
 
-        if (isStopRequested()) return;
+        if (isStopRequested()) {
+            vision.close();
+            return;
+        }
 
         while (opModeIsActive()) {
 
@@ -72,20 +103,63 @@ public class EasyTT extends LinearOpMode {
             rotX = rotX * 1.1;
 
             double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rx), 1);
-            double frontLeftPower = (rotY + rotX + rx) / denominator;
-            double backLeftPower = (rotY - rotX + rx) / denominator;
-            double frontRightPower = (rotY - rotX - rx) / denominator;
-            double backRightPower = (rotY + rotX - rx) / denominator;
+            leftFrontDrive.setPower((rotY + rotX + rx) / denominator);
+            leftBehindDrive.setPower((rotY - rotX + rx) / denominator);
+            rightFrontDrive.setPower((rotY - rotX - rx) / denominator);
+            rightBehindDrive.setPower((rotY + rotX - rx) / denominator);
 
-            leftFrontDrive.setPower(frontLeftPower);
-            leftBehindDrive.setPower(backLeftPower);
-            rightFrontDrive.setPower(frontRightPower);
-            rightBehindDrive.setPower(backRightPower);
+            boolean currentLeftBumper = gamepad1.left_bumper;
+            if (currentLeftBumper && !lastLeftBumper) {
+                isIntakeActive = !isIntakeActive;
+            }
+            lastLeftBumper = currentLeftBumper;
 
-            telemetry.addData("模式", "无头模式 (Field-Centric)");
-            telemetry.addData("航向角 (Heading)", "%.2f 弧度", botHeading);
-            telemetry.addData("输入 (Input)", "Y:%.2f, X:%.2f, Turn:%.2f", y, x, rx);
+            if (isIntakeActive) {
+                intakeMotor.setPower(1.0);
+                holdServo.setPower(1.0);
+
+                if (!visionInitialized) {
+                    classifyServo.setPower(-1.0);
+                    telemetry.addData("Classify", "Cam Failed -> Default -1.0");
+                } else {
+                    ColorClassifier.DetectionResult result = vision.getResult();
+
+                    if (result == ColorClassifier.DetectionResult.GREEN) {
+                        classifyServo.setPower(1.0);
+                        lastDetectedDirection = 1.0;
+                        hasDetectedAnyColor = true;
+                        telemetry.addData("Classify", "GREEN -> 1.0");
+                    }
+                    else if (result == ColorClassifier.DetectionResult.PURPLE) {
+                        classifyServo.setPower(-1.0);
+                        lastDetectedDirection = -1.0;
+                        hasDetectedAnyColor = true;
+                        telemetry.addData("Classify", "PURPLE -> -1.0");
+                    }
+                    else {
+                        if (hasDetectedAnyColor) {
+                            double holdPower = lastDetectedDirection * 0.5;
+                            classifyServo.setPower(holdPower);
+                            telemetry.addData("Classify", "NONE -> Hold %.2f", holdPower);
+                        } else {
+                            classifyServo.setPower(-1.0);
+                            telemetry.addData("Classify", "NONE (Startup) -> -1.0");
+                        }
+                    }
+                }
+            } else {
+                intakeMotor.setPower(0.0);
+                holdServo.setPower(0.0);
+                classifyServo.setPower(0.0);
+            }
+
+            telemetry.addData("Intake Mode", isIntakeActive ? "ON" : "OFF");
+            if(visionInitialized) {
+                telemetry.addData("Vision Debug", vision.getDebugInfo());
+            }
             telemetry.update();
         }
+
+        vision.close();
     }
 }
