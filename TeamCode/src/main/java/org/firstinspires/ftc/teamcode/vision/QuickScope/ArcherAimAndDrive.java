@@ -38,8 +38,8 @@ public class ArcherAimAndDrive extends LinearOpMode {
         initializeSensorsAndLogic();
 
         RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.LEFT,
-                RevHubOrientationOnRobot.UsbFacingDirection.DOWN);
+                RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,
+                RevHubOrientationOnRobot.UsbFacingDirection.UP);
         imu.initialize(new IMU.Parameters(orientationOnRobot));
 
         telemetry.addLine("初始化完成");
@@ -194,6 +194,7 @@ public class ArcherAimAndDrive extends LinearOpMode {
             telemetry.addData("目标", alliance);
             telemetry.addData("发射仰角", "%.2f", solution.launcherAngle);
             telemetry.addData("底盘朝向", "%.2f", solution.aimAzimuthDeg);
+            telemetry.addData("发射速度","%.2f",solution.motorRpm);
         } else {
             telemetry.addLine(">> 无解 (No Solution) <<");
         }

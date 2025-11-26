@@ -11,8 +11,8 @@ public class ArcherLogic {
     private static final double DRAG_COEFFICIENT = 0.25;
     private static final double CROSS_SECTIONAL_AREA_M2 = 0.00928;
     // 计算参数
-    private static final double MIN_ANGLE_DEG = 55.0;
-    private static final double MAX_ANGLE_DEG = 90.0;
+    private static final double MIN_ANGLE_DEG = 40;
+    private static final double MAX_ANGLE_DEG = 67.5;
     private static final double ANGLE_SEARCH_STEP = 1.0;
     private static final double VELOCITY_SEARCH_STEP = 0.1;
     private static final int MAX_VELOCITY_TRIES = 500;
@@ -20,7 +20,7 @@ public class ArcherLogic {
     private static final double HIT_TOLERANCE_M = 0.055;
     private static final double TIME_STEP_S = 0.006;
     // 硬件常量
-    private static final double MOTOR_RPM_LOSS_FACTOR_PERCENT = -5;
+    private static final double MOTOR_RPM_LOSS_FACTOR_PERCENT = 55;
     private static final double FRICTION_WHEEL_DIAMETER_M = 0.072;
     // 场地常量
     private static final double REAL_FIELD_SIZE_INCHES = 141.170031;

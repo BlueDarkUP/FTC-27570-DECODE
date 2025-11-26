@@ -11,6 +11,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
@@ -22,8 +23,8 @@ import java.util.List;
  */
 public class AprilTagLocalizer {
     private static final Position cameraPosition = new Position(DistanceUnit.CM,
-            -17.2, 16.5, 14.5, 0);
-    private static final YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES, 0, -47, -90, 0);
+            0, 14.5, 30, 0);
+    private static final YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES, 0, -72.5, 0, 0);
 
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;
@@ -42,6 +43,8 @@ public class AprilTagLocalizer {
     public AprilTagLocalizer(HardwareMap hwMap) {
         aprilTag = new AprilTagProcessor.Builder()
                 .setOutputUnits(DistanceUnit.MM, AngleUnit.DEGREES)
+
+                .setTagLibrary(AprilTagGameDatabase.getDecodeTagLibrary())
                 .setNumThreads(4)
                 .setCameraPose(cameraPosition, cameraOrientation)
                 .build();
@@ -62,8 +65,17 @@ public class AprilTagLocalizer {
     public Pose2D getRobotPose() {
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
 
-        // 这个方法的逻辑完全保持不变
         for (AprilTagDetection detection : currentDetections) {
+            // ********** 修改开始 **********
+            // 过滤逻辑：如果是任务用的 Tag (21, 22, 23)，直接跳过，不用于定位
+            if (detection.id == SPIKE_MARK_ID_LEFT ||
+                    detection.id == SPIKE_MARK_ID_MIDDLE ||
+                    detection.id == SPIKE_MARK_ID_RIGHT) {
+                continue;
+            }
+            // ********** 修改结束 **********
+
+            // 只有不是 21/22/23 时，才执行下面的定位逻辑
             if (detection.metadata != null && detection.robotPose != null) {
                 double aprilTagX = detection.robotPose.getPosition().x;
                 double aprilTagY = detection.robotPose.getPosition().y;
