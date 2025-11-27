@@ -91,6 +91,9 @@ public class EasyTT_Archer_Final extends LinearOpMode {
     private static final double K_STATIC = 0.0;
     private static final double MAX_AUTO_TURN = 1;
 
+    // 新增：转速允许误差范围 (RPM)
+    private static final double RPM_TOLERANCE = 80.0;
+
     @Override
     public void runOpMode() {
 
@@ -115,22 +118,23 @@ public class EasyTT_Archer_Final extends LinearOpMode {
             shMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
             shMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             shMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
-            // NEW: 设置 SH 电机为 Reverse
             shMotor.setDirection(DcMotorSimple.Direction.REVERSE);
-
-            // 设置 PIDF 参数 (P=250, I=0.1, D=30, F=13)
             PIDFCoefficients pidfNew = new PIDFCoefficients(250, 0.1, 30, 13);
             shMotor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfNew);
+            shMotor.setPower(0);
         } catch (Exception e) {
             telemetry.addData("Error", "SH Motor Not Found or Config Error");
         }
-        // ---------------------------
 
         intakeMotor = hardwareMap.get(DcMotor.class, "Intake");
         holdServo = hardwareMap.get(CRServo.class, "Hold");
         classifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
         washer = hardwareMap.get(CRServo.class, "washer");
+
+        intakeMotor.setPower(0);
+        holdServo.setPower(0);
+        classifyServo.setPower(0);
+        washer.setPower(0);
 
         intakeMotor.setDirection(DcMotorSimple.Direction.FORWARD);
 
@@ -144,6 +148,7 @@ public class EasyTT_Archer_Final extends LinearOpMode {
             mozart = hardwareMap.get(DcMotor.class, "MOZART");
             mozart.setDirection(DcMotor.Direction.FORWARD);
             mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+            mozart.setPower(0);
         } catch (Exception e) {
             telemetry.addData("Warning", "MOZART Not Found");
         }
@@ -170,6 +175,7 @@ public class EasyTT_Archer_Final extends LinearOpMode {
             visionInitialized = true;
         } catch (Exception e) {
             visionInitialized = false;
+            telemetry.addData("Vision Error", e.getMessage());
         }
 
         telemetry.addLine("Ready.");
@@ -177,226 +183,273 @@ public class EasyTT_Archer_Final extends LinearOpMode {
 
         waitForStart();
 
-        if (isStopRequested()) {
-            vision.close();
-            aprilTagLocalizer.close();
-            return;
-        }
+        try {
+            if (isStopRequested()) return;
 
-        runtime.reset();
-        lastPidTime = runtime.seconds();
-        performVisionCorrection();
+            runtime.reset();
+            lastPidTime = runtime.seconds();
+            performVisionCorrection();
 
-        while (opModeIsActive()) {
+            while (opModeIsActive()) {
 
-            boolean visionUpdated = performVisionCorrection();
-            pinpointPoseProvider.update();
+                // 1. 更新定位
+                boolean visionUpdated = performVisionCorrection();
+                pinpointPoseProvider.update();
 
-            double robotX_cm = -pinpointPoseProvider.getX(DistanceUnit.CM);
-            double robotY_cm = pinpointPoseProvider.getY(DistanceUnit.CM);
-            double normalizationX = robotX_cm / 365.76;
-            double normalizationY = robotY_cm / 365.76;
+                // 2. 获取机器人状态
+                double robotX_cm = -pinpointPoseProvider.getX(DistanceUnit.CM);
+                double robotY_cm = pinpointPoseProvider.getY(DistanceUnit.CM);
+                double normalizationX = robotX_cm / 365.76;
+                double normalizationY = robotY_cm / 365.76;
 
-            double cartesianVelX_m_s = -pinpointPoseProvider.getXVelocity(DistanceUnit.MM) / 1000.0;
-            double cartesianVelY_m_s = pinpointPoseProvider.getYVelocity(DistanceUnit.MM) / 1000.0;
-            double speed_m_s = Math.hypot(cartesianVelX_m_s, cartesianVelY_m_s);
-            double direction_deg = Math.toDegrees(Math.atan2(cartesianVelY_m_s, cartesianVelX_m_s));
-            if (direction_deg < 0) direction_deg += 360;
+                double cartesianVelX_m_s = -pinpointPoseProvider.getXVelocity(DistanceUnit.MM) / 1000.0;
+                double cartesianVelY_m_s = pinpointPoseProvider.getYVelocity(DistanceUnit.MM) / 1000.0;
+                double speed_m_s = Math.hypot(cartesianVelX_m_s, cartesianVelY_m_s);
+                double direction_deg = Math.toDegrees(Math.atan2(cartesianVelY_m_s, cartesianVelX_m_s));
+                if (direction_deg < 0) direction_deg += 360;
 
-            if (gamepad1.x) targetAlliance = "Blue";
-            if (gamepad1.b) targetAlliance = "Red";
-            if (gamepad1.a) {
-                pinpointPoseProvider.reset();
-                imu.resetYaw();
-                headingOffset = 0;
-            }
-
-            CalculationParams currentParams = new CalculationParams(
-                    normalizationX, normalizationY, speed_m_s, direction_deg, targetAlliance
-            );
-            currentSolution = archerLogic.calculateSolution(currentParams);
-
-            boolean currentRightBumper = gamepad1.right_bumper;
-            if (currentRightBumper && !lastRightBumper) {
-                isAimMode = !isAimMode;
-                if (isAimMode) {
-                    if (currentSolution != null) {
-                        targetHeading = normalizeAngle(currentSolution.aimAzimuthDeg + 180);
-                    } else {
-                        targetHeading = getRobotFieldHeading();
-                    }
-                    headingLastError = 0;
-                    lastPidTime = runtime.seconds();
+                // 3. 处理按键和解算
+                if (gamepad1.x) targetAlliance = "Blue";
+                if (gamepad1.b) targetAlliance = "Red";
+                if (gamepad1.a) {
+                    pinpointPoseProvider.reset();
+                    imu.resetYaw();
+                    headingOffset = 0;
                 }
-            }
-            lastRightBumper = currentRightBumper;
 
-            // --- SH Motor Logic ---
-            if (shMotor != null) {
-                double targetRPM = 1000.0; // 默认怠速 1000 RPM
+                CalculationParams currentParams = new CalculationParams(
+                        normalizationX, normalizationY, speed_m_s, direction_deg, targetAlliance
+                );
+                currentSolution = archerLogic.calculateSolution(currentParams);
 
+                boolean currentRightBumper = gamepad1.right_bumper;
+                if (currentRightBumper && !lastRightBumper) {
+                    isAimMode = !isAimMode;
+                    if (isAimMode) {
+                        if (currentSolution != null) {
+                            targetHeading = normalizeAngle(currentSolution.aimAzimuthDeg + 180);
+                        } else {
+                            targetHeading = getRobotFieldHeading();
+                        }
+                        headingLastError = 0;
+                        lastPidTime = runtime.seconds();
+                    }
+                }
+                lastRightBumper = currentRightBumper;
+
+                // =============================================================
+                // SH Motor 闭环控制逻辑 (SH Motor Closed Loop Control)
+                // =============================================================
+
+                double targetRPM = 1000.0; // 默认空闲转速
+                double currentRpm = 0.0;
+
+                // 确定目标转速
                 if (isAimMode && currentSolution != null) {
                     targetRPM = currentSolution.motorRpm;
                 }
 
-                // 将 RPM 转换为 Ticks Per Second
-                double targetVelocityTPS = (targetRPM * MOTOR_TICK_COUNT) / 60.0;
-                shMotor.setVelocity(targetVelocityTPS);
-            }
-            // ---------------------------
+                if (shMotor != null) {
+                    // 读取当前转速（用于判断发射条件）
+                    double currentVel = shMotor.getVelocity();
+                    currentRpm = (currentVel * 60.0) / MOTOR_TICK_COUNT;
 
-            double rawTargetAngle = (currentSolution != null) ? currentSolution.launcherAngle : 67.5;
-            rawTargetAngle = Range.clip(rawTargetAngle, MIN_ANGLE_DEG, MAX_ANGLE_DEG);
-            filteredLauncherAngle = angleFilter.updateEstimate(rawTargetAngle);
-
-            if (isAimMode) {
-                setLauncherServos(filteredLauncherAngle);
-
-                // NEW: 自瞄模式下的扳机逻辑
-                if (mozart != null) {
-                    // 如果 Left Trigger 被按下 (忽略具体数值，只要按下即为全速)
-                    if (gamepad1.left_trigger > 0.05) {
-                        mozart.setPower(1.0);
-                    } else {
-                        mozart.setPower(0.0);
-                    }
-                }
-            } else {
-                servoRP.setPosition(0.91);
-                servoLP.setPosition(0.078);
-            }
-
-            if (gamepad1.options) {
-                imu.resetYaw();
-                headingOffset = 0;
-            }
-
-            double rawY = -gamepad1.left_stick_y;
-            double rawX = gamepad1.left_stick_x;
-            double rotationPower;
-
-            if (isAimMode) {
-                double currentTime = runtime.seconds();
-                double dt = currentTime - lastPidTime;
-                if (dt < 0.001) dt = 0.001;
-
-                double currentHeading = getRobotFieldHeading();
-                double headingError = normalizeAngle(currentHeading - targetHeading);
-
-                double pTerm = headingError * P_TURN;
-                double dTerm = (headingError - headingLastError) / dt * D_TURN;
-
-                double pidOut = pTerm + dTerm;
-
-                if (Math.abs(headingError) > 1.0) {
-                    if (pidOut > 0) pidOut += K_STATIC;
-                    else pidOut -= K_STATIC;
+                    // 设置目标速度
+                    double targetVelocityTPS = (targetRPM * MOTOR_TICK_COUNT) / 60.0;
+                    shMotor.setVelocity(targetVelocityTPS);
                 }
 
-                rotationPower = Range.clip(pidOut, -MAX_AUTO_TURN, MAX_AUTO_TURN);
+                // =============================================================
+                // 舵机与发射逻辑 (Servo & Launch Logic)
+                // =============================================================
 
-                headingLastError = headingError;
-                lastPidTime = currentTime;
-            } else {
-                rotationPower = rx(gamepad1.right_stick_x);
-            }
+                double rawTargetAngle = (currentSolution != null) ? currentSolution.launcherAngle : 67.5;
+                rawTargetAngle = Range.clip(rawTargetAngle, MIN_ANGLE_DEG, MAX_ANGLE_DEG);
+                filteredLauncherAngle = angleFilter.updateEstimate(rawTargetAngle);
 
-            double botHeading = Math.toRadians(getRobotFieldHeading());
-            double rotX = x(rawX) * Math.cos(-botHeading) - y(rawY) * Math.sin(-botHeading);
-            double rotY = x(rawX) * Math.sin(-botHeading) + y(rawY) * Math.cos(-botHeading);
+                if (isAimMode) {
+                    // 自瞄模式下控制仰角
+                    setLauncherServos(filteredLauncherAngle);
 
-            rotX = rotX * 1.1;
-            double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rotationPower), 1);
-            leftFrontDrive.setPower((rotY + rotX + rotationPower) / denominator);
-            leftBehindDrive.setPower((rotY - rotX + rotationPower) / denominator);
-            rightFrontDrive.setPower((rotY - rotX - rotationPower) / denominator);
-            rightBehindDrive.setPower((rotY + rotX - rotationPower) / denominator);
+                    // --- [优化的 MOZART 控制] ---
+                    if (mozart != null) {
+                        if (gamepad1.left_trigger > 0.05) {
+                            // 只有当按下扳机 且 实际转速在误差范围内时才发射
+                            double rpmError = Math.abs(targetRPM - currentRpm);
 
-            boolean currentLeftBumper = gamepad1.left_bumper;
-            if (currentLeftBumper && !lastLeftBumper) {
-                isIntakeActive = !isIntakeActive;
-                if (isIntakeActive) {
-                    isMozartBraked = false;
-                    if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-                } else {
-                    if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-                }
-            }
-            lastLeftBumper = currentLeftBumper;
-
-            if (isIntakeActive) {
-                intakeMotor.setPower(1.0);
-                washer.setPower(1.0);
-                holdServo.setPower(-1.0);
-
-                // 注意这里有 !isAimMode 保护，所以上方自瞄模式的 Trigger 逻辑不会被覆盖
-                if (!isAimMode && mozart != null && ballSensor != null) {
-                    if (!isMozartBraked) {
-                        NormalizedRGBA colors = ballSensor.getNormalizedColors();
-                        if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
-                            isMozartBraked = true;
-                        }
-                    }
-                    if (isMozartBraked) {
-                        mozart.setPower(0.0);
-                    } else {
-                        mozart.setPower(1.0);
-                    }
-                }
-
-                if (!visionInitialized) {
-                    classifyServo.setPower(1.0);
-                } else {
-                    ColorClassifier.DetectionResult result = vision.getResult();
-                    if (result == ColorClassifier.DetectionResult.GREEN) {
-                        classifyServo.setPower(-1.0);
-                        lastDetectedDirection = 1.0;
-                        hasDetectedAnyColor = true;
-                    } else if (result == ColorClassifier.DetectionResult.PURPLE) {
-                        classifyServo.setPower(1.0);
-                        lastDetectedDirection = -1.0;
-                        hasDetectedAnyColor = true;
-                    } else {
-                        if (hasDetectedAnyColor) {
-                            classifyServo.setPower(-lastDetectedDirection * 0.5);
+                            if (rpmError <= RPM_TOLERANCE) {
+                                mozart.setPower(1.0); // 允许发射
+                            } else {
+                                mozart.setPower(0.0); // 强制等待加速完成 (BRAKE效果)
+                            }
                         } else {
-                            classifyServo.setPower(1.0);
+                            mozart.setPower(0.0); // 松开扳机停止
                         }
                     }
+                } else {
+                    // 手动模式归位
+                    servoRP.setPosition(0.91);
+                    servoLP.setPosition(0.078);
                 }
-            } else {
-                intakeMotor.setPower(0.0);
-                holdServo.setPower(0.0);
-                classifyServo.setPower(0.0);
-                washer.setPower(0.0);
-                // 同样有 !isAimMode 保护
-                if (!isAimMode && mozart != null) mozart.setPower(0.0);
+
+                // =============================================================
+                // 底盘控制 (Chassis Control)
+                // =============================================================
+                if (gamepad1.options) {
+                    imu.resetYaw();
+                    headingOffset = 0;
+                }
+
+                double rawY = -gamepad1.left_stick_y;
+                double rawX = gamepad1.left_stick_x;
+                double rotationPower;
+
+                if (isAimMode) {
+                    // PID 自动对准逻辑...
+                    double currentTime = runtime.seconds();
+                    double dt = currentTime - lastPidTime;
+                    if (dt < 0.001) dt = 0.001;
+
+                    double currentHeading = getRobotFieldHeading();
+                    double headingError = normalizeAngle(currentHeading - targetHeading);
+
+                    double pTerm = headingError * P_TURN;
+                    double dTerm = (headingError - headingLastError) / dt * D_TURN;
+
+                    double pidOut = pTerm + dTerm;
+
+                    if (Math.abs(headingError) > 1.0) {
+                        if (pidOut > 0) pidOut += K_STATIC;
+                        else pidOut -= K_STATIC;
+                    }
+
+                    rotationPower = Range.clip(pidOut, -MAX_AUTO_TURN, MAX_AUTO_TURN);
+
+                    headingLastError = headingError;
+                    lastPidTime = currentTime;
+                } else {
+                    rotationPower = rx(gamepad1.right_stick_x);
+                }
+
+                double botHeading = Math.toRadians(getRobotFieldHeading());
+                double rotX = x(rawX) * Math.cos(-botHeading) - y(rawY) * Math.sin(-botHeading);
+                double rotY = x(rawX) * Math.sin(-botHeading) + y(rawY) * Math.cos(-botHeading);
+
+                rotX = rotX * 1.1;
+                double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rotationPower), 1);
+                leftFrontDrive.setPower((rotY + rotX + rotationPower) / denominator);
+                leftBehindDrive.setPower((rotY - rotX + rotationPower) / denominator);
+                rightFrontDrive.setPower((rotY - rotX - rotationPower) / denominator);
+                rightBehindDrive.setPower((rotY + rotX - rotationPower) / denominator);
+
+                // =============================================================
+                // 进料 (Intake) 控制
+                // 注意：如果处于 AimMode，Intake 逻辑不应干扰 MOZART
+                // =============================================================
+
+                boolean currentLeftBumper = gamepad1.left_bumper;
+                if (currentLeftBumper && !lastLeftBumper) {
+                    isIntakeActive = !isIntakeActive;
+                    if (isIntakeActive) {
+                        isMozartBraked = false;
+                        if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+                    } else {
+                        if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+                    }
+                }
+                lastLeftBumper = currentLeftBumper;
+
+                if (isIntakeActive) {
+                    intakeMotor.setPower(1.0);
+                    washer.setPower(1.0);
+                    holdServo.setPower(-1.0);
+
+                    // 视觉与传感器逻辑
+                    if (!visionInitialized) {
+                        classifyServo.setPower(1.0);
+                    } else {
+                        ColorClassifier.DetectionResult result = vision.getResult();
+                        if (result == ColorClassifier.DetectionResult.GREEN) {
+                            classifyServo.setPower(-1.0);
+                            lastDetectedDirection = 1.0;
+                            hasDetectedAnyColor = true;
+                        } else if (result == ColorClassifier.DetectionResult.PURPLE) {
+                            classifyServo.setPower(1.0);
+                            lastDetectedDirection = -1.0;
+                            hasDetectedAnyColor = true;
+                        } else {
+                            if (hasDetectedAnyColor) {
+                                classifyServo.setPower(-lastDetectedDirection * 0.5);
+                            } else {
+                                classifyServo.setPower(1.0);
+                            }
+                        }
+                    }
+
+                    // --- [修正 Intake 对 MOZART 的控制] ---
+                    // 只有在非自瞄模式下，Intake 逻辑才能控制 MOZART
+                    // 如果在自瞄，MOZART 由上面的 Trigger 逻辑全权负责
+                    if (!isAimMode && mozart != null && ballSensor != null) {
+                        if (!isMozartBraked) {
+                            NormalizedRGBA colors = ballSensor.getNormalizedColors();
+                            if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
+                                isMozartBraked = true;
+                            }
+                        }
+                        if (isMozartBraked) {
+                            mozart.setPower(0.0);
+                        } else {
+                            mozart.setPower(1.0);
+                        }
+                    }
+
+                } else {
+                    intakeMotor.setPower(0.0);
+                    holdServo.setPower(0.0);
+                    classifyServo.setPower(0.0);
+                    washer.setPower(0.0);
+
+                    // 同样，只有非自瞄模式下才强制关闭
+                    if (!isAimMode && mozart != null) mozart.setPower(0.0);
+                }
+
+                // =============================================================
+                // Telemetry
+                // =============================================================
+                telemetry.addData("Mode", isAimMode ? "AIMING (BACK)" : "Manual");
+
+                if (shMotor != null) {
+                    telemetry.addData("SH Target RPM", "%.1f", targetRPM);
+                    telemetry.addData("SH Current RPM", "%.1f", currentRpm);
+                    if (isAimMode && gamepad1.left_trigger > 0.05) {
+                        double diff = Math.abs(targetRPM - currentRpm);
+                        telemetry.addData("Launch Status", diff <= RPM_TOLERANCE ? "FIRING" : "WAITING FOR SPINUP");
+                    }
+                }
+
+                if (isAimMode) {
+                    telemetry.addData("Err", "%.2f", normalizeAngle(getRobotFieldHeading() - targetHeading));
+                }
+
+                telemetry.update();
             }
 
-            telemetry.addData("Mode", isAimMode ? "AIMING (BACK)" : "Manual");
-            telemetry.addData("Alliance", targetAlliance);
-
-            if (shMotor != null) {
-                double currentVel = shMotor.getVelocity();
-                double currentRpm = (currentVel * 60.0) / MOTOR_TICK_COUNT;
-                telemetry.addData("SH Motor RPM", "%.1f", currentRpm);
-            }
-
-            if (isAimMode) {
-                telemetry.addData("Target (Back)", "%.2f", targetHeading);
-                telemetry.addData("Current", "%.2f", getRobotFieldHeading());
-                telemetry.addData("Err", "%.2f", normalizeAngle(getRobotFieldHeading() - targetHeading));
-            }
-
-            if (currentSolution != null) {
-                telemetry.addData("RPM Need", "%.0f", currentSolution.motorRpm);
-            }
-
+        } catch (Exception e) {
+            telemetry.addData("STATUS", "CRASH PREVENTED");
+            telemetry.addData("Error", e.getMessage());
             telemetry.update();
+        } finally {
+            if (visionInitialized && vision != null) {
+                try { vision.close(); } catch (Exception e) { }
+            }
+            if (aprilTagLocalizer != null) {
+                try { aprilTagLocalizer.close(); } catch (Exception e) { }
+            }
+            if (intakeMotor != null) intakeMotor.setPower(0);
+            if (washer != null) washer.setPower(0);
+            if (shMotor != null) shMotor.setPower(0);
+            if (mozart != null) mozart.setPower(0);
         }
-
-        vision.close();
-        aprilTagLocalizer.close();
     }
 
     private void setLauncherServos(double angle) {
