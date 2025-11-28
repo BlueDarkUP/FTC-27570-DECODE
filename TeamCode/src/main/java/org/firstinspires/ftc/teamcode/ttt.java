@@ -48,7 +48,7 @@ public class ttt extends LinearOpMode {
         telemetry = new MultipleTelemetry(telemetry, dashboard.getTelemetry());
 
         // 从硬件映射中获取电机
-        motor = hardwareMap.get(DcMotorEx.class, "SH");
+        motor = hardwareMap.get(DcMotorEx.class, "Shooter");
         motor.setDirection(DcMotor.Direction.REVERSE);
         motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
