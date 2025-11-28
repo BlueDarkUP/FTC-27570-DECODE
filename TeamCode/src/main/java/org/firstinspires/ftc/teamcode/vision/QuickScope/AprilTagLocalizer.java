@@ -16,11 +16,6 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
 
-/**
- * [坐标系转换版] 封装了AprilTag定位功能的独立类。
- * 此版本包含了将AprilTag默认的“中心原点”坐标系转换为我们期望的“左下角原点”坐标系的关键逻辑。
- * [新增功能] 同时增加了检测特定AprilTag ID (21, 22, 23) 以判断位置的功能。
- */
 public class AprilTagLocalizer {
     private static final Position cameraPosition = new Position(DistanceUnit.CM,
             0, 11.1, 44, 0);
@@ -31,19 +26,17 @@ public class AprilTagLocalizer {
 
     private static final double HALF_FIELD_MM = 72 * 25.4;
 
-    // ********** 新增内容开始 **********
-    // 为需要特殊检测的AprilTag ID定义常量，提高代码可读性和可维护性。
-    // 假设这些ID对应 Spike Mark 的三个位置：左、中、右。
     private static final int SPIKE_MARK_ID_LEFT = 21;   // 返回 1
     private static final int SPIKE_MARK_ID_MIDDLE = 22; // 返回 2
     private static final int SPIKE_MARK_ID_RIGHT = 23;  // 返回 3
-    // ********** 新增内容结束 **********
 
+    private float currentDecimation = 1.0f;
+    private static final double K_RED = 0.11198037606120845;
+    private static final double K_BLUE = 0.6998773503825528;
 
     public AprilTagLocalizer(HardwareMap hwMap) {
         aprilTag = new AprilTagProcessor.Builder()
                 .setOutputUnits(DistanceUnit.MM, AngleUnit.DEGREES)
-
                 .setTagLibrary(AprilTagGameDatabase.getDecodeTagLibrary())
                 .setNumThreads(4)
                 .setCameraPose(cameraPosition, cameraOrientation)
@@ -58,24 +51,41 @@ public class AprilTagLocalizer {
                 .build();
     }
 
-    /**
-     * 核心方法：获取当前机器人经过坐标系转换后的、正确的Pose2D。
-     * @return 如果看到任何有效的AprilTag，则返回一个精确的Pose2D；否则返回null。
-     */
+    public void updateDecimationByNormalizedPos(double normX, double normY) {
+        double d1 = (normX * normX) + Math.pow(1.0 - normY, 2);
+        double d2 = Math.pow(1.0 - normX, 2) + Math.pow(1.0 - normY, 2);
+
+        float newDecimation;
+
+        if (d1 < K_RED || d2 < K_RED) {
+            // 红色内部 -> 极近距离 (< 1.2m)
+            newDecimation = 3.0f;
+        } else if (d1 <= K_BLUE || d2 <= K_BLUE) {
+            // 蓝红之间 -> 中距离 (1.2m - 3.0m)
+            newDecimation = 2.0f;
+        } else {
+            // 蓝色弧线下方 -> 远距离 (> 3.0m)
+            newDecimation = 1.0f;
+        }
+
+        // 4. 仅在状态改变时调用底层API，避免性能损耗
+        if (currentDecimation != newDecimation) {
+            aprilTag.setDecimation(newDecimation);
+            currentDecimation = newDecimation;
+        }
+    }
+
+
     public Pose2D getRobotPose() {
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
 
         for (AprilTagDetection detection : currentDetections) {
-            // ********** 修改开始 **********
-            // 过滤逻辑：如果是任务用的 Tag (21, 22, 23)，直接跳过，不用于定位
             if (detection.id == SPIKE_MARK_ID_LEFT ||
                     detection.id == SPIKE_MARK_ID_MIDDLE ||
                     detection.id == SPIKE_MARK_ID_RIGHT) {
                 continue;
             }
-            // ********** 修改结束 **********
 
-            // 只有不是 21/22/23 时，才执行下面的定位逻辑
             if (detection.metadata != null && detection.robotPose != null) {
                 double aprilTagX = detection.robotPose.getPosition().x;
                 double aprilTagY = detection.robotPose.getPosition().y;
@@ -98,41 +108,23 @@ public class AprilTagLocalizer {
         return null;
     }
 
-    // ********** 新增方法开始 **********
-    /**
-     * 新增功能：检测特定的Spike Mark AprilTag。
-     * 这个方法专门用于在自动阶段开始时，判断随机化的位置。
-     * 它会持续检查，只要看到ID为21、22或23的标签，就立刻返回对应的值。
-     *
-     * @return 1 - 如果检测到ID为 21 的AprilTag。
-     *         2 - 如果检测到ID为 22 的AprilTag。
-     *         3 - 如果检测到ID为 23 的AprilTag。
-     *         0 - 如果当前视野内没有检测到以上任何一个AprilTag。
-     */
     public int getSpikeMarkLocation() {
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
 
-        // 遍历当前帧检测到的所有AprilTag
         for (AprilTagDetection detection : currentDetections) {
-            // 确保检测结果是有效的
             if (detection.metadata != null) {
-                // 使用 switch 语句检查ID，更清晰高效
                 switch (detection.id) {
                     case SPIKE_MARK_ID_LEFT:
-                        return 1; // 看到ID 21，立即返回 1
+                        return 1;
                     case SPIKE_MARK_ID_MIDDLE:
-                        return 2; // 看到ID 22，立即返回 2
+                        return 2;
                     case SPIKE_MARK_ID_RIGHT:
-                        return 3; // 看到ID 23，立即返回 3
+                        return 3;
                 }
             }
         }
-
-        // 如果循环结束了还没有返回，说明没有看到任何一个目标ID
         return 0;
     }
-    // ********** 新增方法结束 **********
-
 
     public void close() {
         if (visionPortal != null) {

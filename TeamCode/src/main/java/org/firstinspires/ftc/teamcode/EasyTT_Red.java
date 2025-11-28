@@ -97,9 +97,9 @@ public class EasyTT_Red extends LinearOpMode {
     private double headingLastError = 0.0;
     private double lastPidTime = 0.0;
 
-    private static final double P_TURN = 0.01;
+    private static final double P_TURN = 0.0101;
     private static final double D_TURN = 0.0005;
-    private static final double K_STATIC = 0.15;
+    private static final double K_STATIC = 0.12;
     private static final double MAX_AUTO_TURN = 1;
 
     private static final double RPM_TOLERANCE = 50.0;
@@ -215,6 +215,8 @@ public class EasyTT_Red extends LinearOpMode {
                 double robotY_cm = pinpointPoseProvider.getY(DistanceUnit.CM);
                 double normalizationX = robotX_cm / 365.76;
                 double normalizationY = robotY_cm / 365.76;
+
+                aprilTagLocalizer.updateDecimationByNormalizedPos(normalizationX, normalizationY);
 
                 double cartesianVelX_m_s = -pinpointPoseProvider.getXVelocity(DistanceUnit.MM) / 1000.0;
                 double cartesianVelY_m_s = pinpointPoseProvider.getYVelocity(DistanceUnit.MM) / 1000.0;
