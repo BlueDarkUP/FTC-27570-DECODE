@@ -23,8 +23,8 @@ import java.util.List;
  */
 public class AprilTagLocalizer {
     private static final Position cameraPosition = new Position(DistanceUnit.CM,
-            0, 14.5, 30, 0);
-    private static final YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES, 0, -72.5, 0, 0);
+            0, 11.1, 44, 0);
+    private static final YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES, 180, -72.5, 0, 0);
 
     private AprilTagProcessor aprilTag;
     private VisionPortal visionPortal;

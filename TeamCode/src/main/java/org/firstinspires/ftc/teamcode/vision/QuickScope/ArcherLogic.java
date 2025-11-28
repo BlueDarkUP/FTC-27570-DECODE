@@ -20,7 +20,7 @@ public class ArcherLogic {
     private static final double HIT_TOLERANCE_M = 0.055;
     private static final double TIME_STEP_S = 0.006;
     // 硬件常量
-    private static final double MOTOR_RPM_LOSS_FACTOR_PERCENT = 55;
+    private static final double MOTOR_RPM_LOSS_FACTOR_PERCENT = 45;
     private static final double FRICTION_WHEEL_DIAMETER_M = 0.072;
     // 场地常量
     private static final double REAL_FIELD_SIZE_INCHES = 141.170031;

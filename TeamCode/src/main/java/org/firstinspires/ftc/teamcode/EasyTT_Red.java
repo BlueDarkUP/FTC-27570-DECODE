@@ -28,8 +28,8 @@ import org.firstinspires.ftc.teamcode.vision.QuickScope.ArcherLogic;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.CalculationParams;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.LaunchSolution;
 
-@TeleOp(name = "EasyTT_Archer_Final_Corrected", group = "Competition")
-public class EasyTT_Archer_Final extends LinearOpMode {
+@TeleOp(name = "TeleOpRed", group = "Competition")
+public class EasyTT_Red extends LinearOpMode {
 
     private DcMotor leftFrontDrive = null;
     private DcMotor rightFrontDrive = null;
@@ -84,10 +84,7 @@ public class EasyTT_Archer_Final extends LinearOpMode {
     private final double SPEED_FILTER_ALPHA = 0.7;
 
     // --- 视觉速度阈值设置 ---
-    // 小于此速度 (0.05 m/s) -> 识别并替换 Odo (Correct)
     private static final double VISION_CORRECT_THRESHOLD = 0.05;
-    // 小于此速度 (0.5 m/s)  -> 仅识别不替换 (Monitor)
-    // 大于此速度 -> 不进行任何识别 (Disabled)
     private static final double VISION_DETECT_THRESHOLD = 0.5;
 
     private static final double MIN_ANGLE_DEG = 39.999999999998;
@@ -106,6 +103,11 @@ public class EasyTT_Archer_Final extends LinearOpMode {
 
     private double lastRumbleTime = 0.0;
     private String visionStatus = "Ready";
+
+    // --- 修改点：定义驾驶员操作修正角度 ---
+    // 如果之前向前推是去 -90度，这里填 90.0 来修正回 0度。
+    // 如果发现方向修正反了（变成去+90了），请将此值改为 -90.0
+    private static final double DRIVER_ORIENTATION_CORRECTION = 90.0;
 
     @Override
     public void runOpMode() {
@@ -201,7 +203,6 @@ public class EasyTT_Archer_Final extends LinearOpMode {
 
             runtime.reset();
             lastPidTime = runtime.seconds();
-            // 初始静态修正
             performVisionCorrection(0.0);
 
             while (opModeIsActive()) {
@@ -223,8 +224,6 @@ public class EasyTT_Archer_Final extends LinearOpMode {
                     smoothSpeed = 0.0;
                 }
 
-                // --- 视觉更新逻辑修改 ---
-                // 只有速度小于 DETECT 阈值时，才去尝试获取 AprilTag 数据
                 if (smoothSpeed < VISION_DETECT_THRESHOLD) {
                     boolean corrected = performVisionCorrection(smoothSpeed);
                     if (corrected) {
@@ -358,9 +357,20 @@ public class EasyTT_Archer_Final extends LinearOpMode {
                     rotationPower = rx(gamepad1.right_stick_x);
                 }
 
-                double botHeading = Math.toRadians(getRobotFieldHeading());
-                double rotX = x(rawX) * Math.cos(-botHeading) - y(rawY) * Math.sin(-botHeading);
-                double rotY = x(rawX) * Math.sin(-botHeading) + y(rawY) * Math.cos(-botHeading);
+                // --- 关键修改开始 ---
+
+                // 1. 获取真实场地角度（保持不变，给自瞄用）
+                double botHeadingRad = Math.toRadians(getRobotFieldHeading());
+
+                // 2. 计算仅用于手动驾驶的“修正后角度”
+                // 原理：欺骗底盘算法，让它以为机器人的角度偏了90度，从而修正手柄输入的映射
+                double drivingHeadingRad = botHeadingRad + Math.toRadians(DRIVER_ORIENTATION_CORRECTION);
+
+                // 3. 在矢量旋转公式中使用修正后的 drivingHeadingRad
+                double rotX = x(rawX) * Math.cos(-drivingHeadingRad) - y(rawY) * Math.sin(-drivingHeadingRad);
+                double rotY = x(rawX) * Math.sin(-drivingHeadingRad) + y(rawY) * Math.cos(-drivingHeadingRad);
+
+                // --- 关键修改结束 ---
 
                 rotX = rotX * 1.1;
                 double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + Math.abs(rotationPower), 1);
@@ -437,9 +447,8 @@ public class EasyTT_Archer_Final extends LinearOpMode {
                 }
 
                 telemetry.addData("Mode", isAimMode ? "AIMING (RUN-N-GUN)" : "Manual");
-
-                // Telemetry 显示视觉状态
                 telemetry.addData("Vision Status", visionStatus);
+                telemetry.addData("Driver Offset", "%.1f deg", DRIVER_ORIENTATION_CORRECTION); // 显示当前修正值
 
                 if (shMotor != null) {
                     telemetry.addData("SH Target RPM", "%.1f", targetRPM);
@@ -500,24 +509,20 @@ public class EasyTT_Archer_Final extends LinearOpMode {
     private double y(double v) { return Math.pow(v, 3); }
     private double rx(double v) { return Math.pow(v, 3); }
 
-    // 修改后的方法：接收当前速度，返回是否执行了修正
     private boolean performVisionCorrection(double currentSpeed) {
-        // 执行检测 (获取 Pose)
         Pose2D visionPose = aprilTagLocalizer.getRobotPose();
 
         if (visionPose != null) {
-            // 只有当速度极低 (小于 CORRECT 阈值) 时，才真正覆盖 Odo
             if (currentSpeed < VISION_CORRECT_THRESHOLD) {
                 pinpointPoseProvider.setPose(visionPose);
                 double visionHeading = visionPose.getHeading(AngleUnit.DEGREES);
                 double rawImuYaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
                 headingOffset = visionHeading - rawImuYaw;
                 lastVisionUpdateTime = runtime.seconds();
-                return true; // 返回 true 表示进行了替换
+                return true;
             }
-            // 否则 (DETECT_THRESHOLD > speed > CORRECT_THRESHOLD)，只检测不替换
         }
-        return false; // 没有检测到 Tag 或 速度不够慢
+        return false;
     }
 
     private double getRobotFieldHeading() {

@@ -24,22 +24,13 @@ public class ColorClassifier {
 
     private OpenCvWebcam webcam;
     private SoftwareResizePipeline pipeline;
-    private Telemetry telemetry; // 可选，用于调试
+    private Telemetry telemetry;
 
-    /**
-     * 初始化相机
-     * @param hardwareMap 硬件映射
-     * @param webcamName 配置文件中摄像头的名字 (例如 "ClassifyCam")
-     * @param telemetry 遥测对象，如果不需要调试可以传 null
-     */
     public void init(HardwareMap hardwareMap, String webcamName, Telemetry telemetry) {
         this.telemetry = telemetry;
 
-        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
-                "cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-
         webcam = OpenCvCameraFactory.getInstance().createWebcam(
-                hardwareMap.get(WebcamName.class, webcamName), cameraMonitorViewId);
+                hardwareMap.get(WebcamName.class, "ClassifyCam"));
 
         pipeline = new SoftwareResizePipeline();
         webcam.setPipeline(pipeline);
@@ -60,6 +51,12 @@ public class ColorClassifier {
         });
     }
 
+    public void setEnabled(boolean enabled) {
+        if (pipeline != null) {
+            pipeline.setEnabled(enabled);
+        }
+    }
+
     public DetectionResult getResult() {
         if (pipeline == null) return DetectionResult.NONE;
         return pipeline.getAnalysis();
@@ -77,6 +74,8 @@ public class ColorClassifier {
     }
 
     private static class SoftwareResizePipeline extends OpenCvPipeline {
+        private volatile boolean isEnabled = false;
+
         public volatile DetectionResult result = DetectionResult.NONE;
         public volatile int greenCount = 0;
         public volatile int purpleCount = 0;
@@ -87,14 +86,21 @@ public class ColorClassifier {
 
         Size tinySize = new Size(80, 60);
 
-        // 阈值设定
         Scalar greenLower = new Scalar(0, 0, 0);
         Scalar greenUpper = new Scalar(255, 110, 150);
         Scalar purpleLower = new Scalar(0, 140, 130);
         Scalar purpleUpper = new Scalar(255, 255, 255);
 
+        public void setEnabled(boolean enabled) {
+            this.isEnabled = enabled;
+        }
+
         @Override
         public Mat processFrame(Mat input) {
+            if (!isEnabled) {
+                return input;
+            }
+
             Imgproc.resize(input, tinyMat, tinySize, 0, 0, Imgproc.INTER_NEAREST);
 
             Imgproc.cvtColor(tinyMat, ycrcb, Imgproc.COLOR_RGB2YCrCb);
@@ -105,7 +111,7 @@ public class ColorClassifier {
             Core.inRange(ycrcb, purpleLower, purpleUpper, mask);
             purpleCount = Core.countNonZero(mask);
 
-            int minThreshold = 240; // 最小像素阈值
+            int minThreshold = 180;
 
             if (greenCount > purpleCount && greenCount > minThreshold) {
                 result = DetectionResult.GREEN;
