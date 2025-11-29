@@ -230,7 +230,7 @@ public class EasyTT_Red extends LinearOpMode {
                     isManualStopped = false;
                 }
 
-                if (smoothSpeed < VISION_DETECT_THRESHOLD && !isManualStopped) {
+                if (smoothSpeed < VISION_DETECT_THRESHOLD) {
                     boolean corrected = performVisionCorrection(smoothSpeed);
                     if (corrected) {
                         visionStatus = "Correcting (Active)";

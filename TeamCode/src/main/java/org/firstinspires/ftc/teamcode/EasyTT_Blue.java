@@ -28,10 +28,9 @@ import org.firstinspires.ftc.teamcode.vision.QuickScope.ArcherLogic;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.CalculationParams;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.LaunchSolution;
 
-@TeleOp(name = "TeleOpBlue", group = "Competition")
+@TeleOp(name = "TeleOpRed", group = "Competition")
 public class EasyTT_Blue extends LinearOpMode {
 
-    // --- 硬件定义 ---
     private DcMotor leftFrontDrive = null;
     private DcMotor rightFrontDrive = null;
     private DcMotor leftBehindDrive = null;
@@ -52,7 +51,6 @@ public class EasyTT_Blue extends LinearOpMode {
     private DcMotor mozart = null;
     private RevColorSensorV3 ballSensor = null;
 
-    // --- 视觉与定位 ---
     private ColorClassifier vision = new ColorClassifier();
     private boolean visionInitialized = false;
     private IMU imu = null;
@@ -62,19 +60,21 @@ public class EasyTT_Blue extends LinearOpMode {
     private ArcherLogic archerLogic;
     private ElapsedTime runtime = new ElapsedTime();
 
-    // --- 状态变量 ---
     private boolean isIntakeActive = false;
-    private boolean lastLeftBumper = false;
+
+    private boolean lastAButton = false;
 
     private boolean isAimMode = false;
     private boolean lastRightBumper = false;
+
+    private boolean isManualStopped = false;
 
     private double lastDetectedDirection = -1.0;
     private boolean hasDetectedAnyColor = false;
     private boolean isMozartBraked = false;
 
     private double headingOffset = 0.0;
-    private String targetAlliance = "Blue";
+    private final String targetAlliance = "Blue";
     private double lastVisionUpdateTime = 0.0;
 
     private LaunchSolution currentSolution = null;
@@ -86,7 +86,6 @@ public class EasyTT_Blue extends LinearOpMode {
     private double smoothSpeed = 0.0;
     private final double SPEED_FILTER_ALPHA = 0.7;
 
-    // --- 常量设置 ---
     private static final double VISION_CORRECT_THRESHOLD = 0.05;
     private static final double VISION_DETECT_THRESHOLD = 0.5;
 
@@ -97,23 +96,25 @@ public class EasyTT_Blue extends LinearOpMode {
     private double headingLastError = 0.0;
     private double lastPidTime = 0.0;
 
-    private static final double P_TURN = 0.01;
+    private static final double P_TURN = 0.0101;
     private static final double D_TURN = 0.0005;
-    private static final double K_STATIC = 0.15;
+    private static final double K_STATIC = 0.12;
     private static final double MAX_AUTO_TURN = 1;
 
-    private static final double RPM_TOLERANCE = 50.0;
+    private double manualTargetRPM = 1500.0;
+    private double manualTargetAngle = 67.44;
+    private double currentRpmTolerance = 50.0;
 
     private double lastRumbleTime = 0.0;
     private String visionStatus = "Ready";
 
-    // 驾驶员修正角度
+    private boolean lastRpmReady = false;
+
     private static final double DRIVER_ORIENTATION_CORRECTION = -90.0;
 
     @Override
     public void runOpMode() {
 
-        // --- 硬件初始化 ---
         leftFrontDrive  = hardwareMap.get(DcMotor.class, "LeftFrontDrive");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "RightFrontDrive");
         leftBehindDrive = hardwareMap.get(DcMotor.class, "LeftBehindDrive");
@@ -156,8 +157,7 @@ public class EasyTT_Blue extends LinearOpMode {
 
         servoRP = hardwareMap.get(Servo.class, "RP");
         servoLP = hardwareMap.get(Servo.class, "LP");
-        servoRP.setPosition(0.91);
-        servoLP.setPosition(0.078);
+        setLauncherServos(manualTargetAngle);
 
         try {
             mozart = hardwareMap.get(DcMotor.class, "MOZART");
@@ -194,7 +194,8 @@ public class EasyTT_Blue extends LinearOpMode {
             telemetry.addData("Vision Error", e.getMessage());
         }
 
-        telemetry.addLine("Ready.");
+        telemetry.addLine("Ready. Alliance Locked to Blue.");
+        telemetry.addLine("Controls: A=Intake, X=Stop, Y=Fire, RB=Aim, R-Stick=Turn");
         telemetry.update();
 
         waitForStart();
@@ -208,13 +209,13 @@ public class EasyTT_Blue extends LinearOpMode {
 
             while (opModeIsActive()) {
 
-                // --- 1. 定位与状态更新 ---
                 pinpointPoseProvider.update();
-
                 double robotX_cm = -pinpointPoseProvider.getX(DistanceUnit.CM);
                 double robotY_cm = pinpointPoseProvider.getY(DistanceUnit.CM);
                 double normalizationX = robotX_cm / 365.76;
                 double normalizationY = robotY_cm / 365.76;
+
+                aprilTagLocalizer.updateDecimationByNormalizedPos(normalizationX, normalizationY);
 
                 double cartesianVelX_m_s = -pinpointPoseProvider.getXVelocity(DistanceUnit.MM) / 1000.0;
                 double cartesianVelY_m_s = pinpointPoseProvider.getYVelocity(DistanceUnit.MM) / 1000.0;
@@ -223,14 +224,17 @@ public class EasyTT_Blue extends LinearOpMode {
                 smoothSpeed = (SPEED_FILTER_ALPHA * rawSpeed) + ((1.0 - SPEED_FILTER_ALPHA) * smoothSpeed);
                 if (smoothSpeed < 0.1) smoothSpeed = 0.0;
 
-                // --- 2. 视觉定位修正逻辑 ---
-                boolean isFiringTrigger = gamepad1.left_trigger > 0.05;
+                boolean isFiringTrigger = gamepad1.y;
 
-                if (smoothSpeed < VISION_DETECT_THRESHOLD && !isFiringTrigger) {
+                if (isFiringTrigger) {
+                    isManualStopped = false;
+                }
+
+                if (smoothSpeed < VISION_DETECT_THRESHOLD) {
                     boolean corrected = performVisionCorrection(smoothSpeed);
                     if (corrected) {
                         visionStatus = "Correcting (Active)";
-                        if (runtime.seconds() - lastRumbleTime > 1.0) {
+                        if (!isFiringTrigger && runtime.seconds() - lastRumbleTime > 1.0) {
                             gamepad1.rumbleBlips(2);
                             lastRumbleTime = runtime.seconds();
                         }
@@ -238,29 +242,52 @@ public class EasyTT_Blue extends LinearOpMode {
                         visionStatus = "Monitoring (No Replace)";
                     }
                 } else {
-                    if (isFiringTrigger) {
-                        visionStatus = "Disabled (Firing)";
-                    } else {
-                        visionStatus = "Disabled (Too Fast)";
-                    }
+                    visionStatus = "Disabled (Too Fast/Stop)";
                 }
 
-                // --- 3. 弹道解算 (ArcherLogic) ---
                 double direction_deg = Math.toDegrees(Math.atan2(cartesianVelY_m_s, cartesianVelX_m_s));
                 if (direction_deg < 0) direction_deg += 360;
 
-                if (gamepad1.x) targetAlliance = "Blue";
-                if (gamepad1.b) targetAlliance = "Red";
-                if (gamepad1.a) {
-                    pinpointPoseProvider.reset();
-                    imu.resetYaw();
-                    headingOffset = 0;
+                if (gamepad1.x) {
+                    isManualStopped = true;
+                    isIntakeActive = false;
+                    isAimMode = false;
+                    manualTargetRPM = 1500.0;
+                    isMozartBraked = false;
+                    if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+                    if (visionInitialized) vision.setEnabled(false);
+
+                    gamepad1.rumbleBlips(1);
+                }
+
+                if (gamepad1.dpad_right) {
+                    isManualStopped = false;
+                    manualTargetRPM = 3280;
+                    currentRpmTolerance = 100;
+                    manualTargetAngle = calculateAngleFromPos(0.0);
+                }
+                if (gamepad1.dpad_left) {
+                    isManualStopped = false;
+                    manualTargetRPM = 2400;
+                    currentRpmTolerance = 150;
+                    manualTargetAngle = calculateAngleFromPos(0.7);
+                }
+                if (gamepad1.dpad_down) {
+                    isManualStopped = false;
+                    manualTargetRPM = 2000;
+                    currentRpmTolerance = 150;
+                    manualTargetAngle = calculateAngleFromPos(1.0);
+                }
+                if (gamepad1.dpad_up) {
+                    isManualStopped = false;
+                    manualTargetRPM = 2800;
+                    currentRpmTolerance = 100;
+                    manualTargetAngle = calculateAngleFromPos(0.2);
                 }
 
                 CalculationParams currentParams = new CalculationParams(
                         normalizationX, normalizationY, smoothSpeed, direction_deg, targetAlliance
                 );
-
                 LaunchSolution tempSolution = archerLogic.calculateSolution(currentParams);
                 if (tempSolution != null) {
                     lastValidSolution = tempSolution;
@@ -269,9 +296,10 @@ public class EasyTT_Blue extends LinearOpMode {
                     currentSolution = lastValidSolution;
                 }
 
-                // --- 4. 自瞄模式切换 ---
                 boolean currentRightBumper = gamepad1.right_bumper;
                 if (currentRightBumper && !lastRightBumper) {
+                    if (isManualStopped) isManualStopped = false;
+
                     isAimMode = !isAimMode;
                     if (isAimMode) {
                         headingLastError = 0;
@@ -283,49 +311,41 @@ public class EasyTT_Blue extends LinearOpMode {
                 }
                 lastRightBumper = currentRightBumper;
 
-                if (isAimMode && currentSolution != null) {
-                    double rawHeadingDeg = currentSolution.aimAzimuthDeg + 180;
-                    targetHeading = normalizeAngle(rawHeadingDeg);
+                double activeTargetRPM = manualTargetRPM;
+                double activeTargetAngle = manualTargetAngle;
+
+                if (isManualStopped && !isFiringTrigger) {
+                    activeTargetRPM = 1500.0;
                 }
 
-                // --- 5. 飞轮 (Launcher) 控制 ---
-                double targetRPM = 1000.0;
-                double currentRpm = 0.0;
+                if (isAimMode && currentSolution != null && !isManualStopped) {
+                    double rawHeadingDeg = currentSolution.aimAzimuthDeg + 180;
+                    targetHeading = normalizeAngle(rawHeadingDeg);
 
-                if (isAimMode && currentSolution != null) {
-                    targetRPM = currentSolution.motorRpm;
+                    activeTargetRPM = currentSolution.motorRpm;
+                    activeTargetAngle = currentSolution.launcherAngle;
+                    currentRpmTolerance = 50.0;
                 }
 
                 if (shMotor != null) {
-                    double currentVel = shMotor.getVelocity();
-                    currentRpm = (currentVel * 60.0) / MOTOR_TICK_COUNT;
-                    double targetVelocityTPS = (targetRPM * MOTOR_TICK_COUNT) / 60.0;
+                    double targetVelocityTPS = (activeTargetRPM * MOTOR_TICK_COUNT) / 60.0;
                     shMotor.setVelocity(targetVelocityTPS);
                 }
 
-                // --- 6. 角度舵机 (Servo) 控制 ---
-                double rawTargetAngle = (currentSolution != null) ? currentSolution.launcherAngle : 67.5;
-                rawTargetAngle = Range.clip(rawTargetAngle, MIN_ANGLE_DEG, MAX_ANGLE_DEG);
-                filteredLauncherAngle = angleFilter.updateEstimate(rawTargetAngle);
+                activeTargetAngle = Range.clip(activeTargetAngle, MIN_ANGLE_DEG, MAX_ANGLE_DEG);
+                filteredLauncherAngle = angleFilter.updateEstimate(activeTargetAngle);
+                setLauncherServos(filteredLauncherAngle);
 
-                if (isAimMode) {
-                    setLauncherServos(filteredLauncherAngle);
-                } else {
-                    servoRP.setPosition(0.91);
-                    servoLP.setPosition(0.078);
-                }
-
-                // --- 7. 底盘运动控制 (Drive) ---
-                if (gamepad1.options) {
+                if (gamepad1.right_stick_button) {
                     imu.resetYaw();
-                    headingOffset = 0;
+                    headingOffset = -DRIVER_ORIENTATION_CORRECTION;
                 }
 
                 double rawY = -gamepad1.left_stick_y;
                 double rawX = gamepad1.left_stick_x;
-                double rotationPower;
+                double rotationPower = 0.0;
 
-                if (isAimMode) {
+                if (isAimMode && !isManualStopped) {
                     double currentTime = runtime.seconds();
                     double dt = currentTime - lastPidTime;
                     if (dt < 0.001) dt = 0.001;
@@ -346,10 +366,10 @@ public class EasyTT_Blue extends LinearOpMode {
                     headingLastError = headingError;
                     lastPidTime = currentTime;
                 } else {
-                    rotationPower = rx(gamepad1.right_stick_x);
+                    double rightStickTurn = gamepad1.right_stick_x;
+                    rotationPower = rx(rightStickTurn);
                 }
 
-                // 底盘矢量控制 + 驾驶员角度修正 (Driver Orientation Correction)
                 double botHeadingRad = Math.toRadians(getRobotFieldHeading());
                 double drivingHeadingRad = botHeadingRad + Math.toRadians(DRIVER_ORIENTATION_CORRECTION);
 
@@ -363,23 +383,27 @@ public class EasyTT_Blue extends LinearOpMode {
                 rightFrontDrive.setPower((rotY - rotX - rotationPower) / denominator);
                 rightBehindDrive.setPower((rotY + rotX - rotationPower) / denominator);
 
-                // =================================================================
-                // 统一机构控制逻辑 (Unified Subsystem Control)
-                // =================================================================
-
-                // --- A. 获取状态 ---
                 boolean isRpmReady = false;
+                double currentRpmForCheck = 0.0;
                 if (shMotor != null) {
-                    double rpmError = Math.abs(targetRPM - currentRpm);
-                    isRpmReady = (rpmError <= RPM_TOLERANCE);
+                    double currentVel = shMotor.getVelocity();
+                    currentRpmForCheck = (currentVel * 60.0) / MOTOR_TICK_COUNT;
+                    double rpmError = Math.abs(activeTargetRPM - currentRpmForCheck);
+                    isRpmReady = (rpmError <= currentRpmTolerance);
+
+                    if (isFiringTrigger && lastRpmReady && !isRpmReady) {
+                        gamepad1.rumble(1.0, 1.0, 150);
+                    }
+                    lastRpmReady = isRpmReady;
                 }
 
-                // 收料开关逻辑
-                boolean currentLeftBumper = gamepad1.left_bumper;
-                if (currentLeftBumper && !lastLeftBumper) {
+                boolean currentAButton = gamepad1.a;
+                if (currentAButton && !lastAButton) {
+                    if (isManualStopped) isManualStopped = false;
+
                     isIntakeActive = !isIntakeActive;
                     if (isIntakeActive) {
-                        isMozartBraked = false; // 重启收料时重置刹车
+                        isMozartBraked = false;
                         if (visionInitialized) vision.setEnabled(true);
                         if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
                     } else {
@@ -387,9 +411,8 @@ public class EasyTT_Blue extends LinearOpMode {
                         if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
                     }
                 }
-                lastLeftBumper = currentLeftBumper;
+                lastAButton = currentAButton;
 
-                // --- B. 决策树 (优先级：开火 > 收料 > 待机) ---
                 double targetMozartPower = 0.0;
                 double targetIntakePower = 0.0;
                 double targetWasherPower = 0.0;
@@ -397,34 +420,25 @@ public class EasyTT_Blue extends LinearOpMode {
                 double targetClassifyPower = 0.0;
 
                 if (isFiringTrigger) {
-                    // >>> 优先级 1: 开火模式 <<<
-                    // 只要扣动扳机，强制覆盖收料逻辑
-
                     if (isRpmReady) {
                         targetMozartPower = 1.0;
                         targetHoldPower = 1.0;
                         targetClassifyPower = 1.0;
                     } else {
-                        // RPM不足，等待
                         targetMozartPower = 0.0;
                         targetHoldPower = 0.0;
                         targetClassifyPower = 0.0;
                     }
 
-                    // 开火时暂停前方收料防止干扰 (可选，若需要边吸边打可改为 1.0)
                     targetIntakePower = 0.0;
                     targetWasherPower = 0.0;
-
-                    // 重置满弹检测，确保能把球打出去
                     isMozartBraked = false;
 
-                } else if (isIntakeActive) {
-                    // >>> 优先级 2: 收料模式 <<<
+                } else if (isIntakeActive && !isManualStopped) {
                     targetIntakePower = 1.0;
                     targetWasherPower = 1.0;
                     targetHoldPower = 1.0;
 
-                    // 视觉分类逻辑
                     if (!visionInitialized) {
                         targetClassifyPower = 1.0;
                     } else {
@@ -446,7 +460,6 @@ public class EasyTT_Blue extends LinearOpMode {
                         }
                     }
 
-                    // 满弹自动刹车 (仅在 Mozart 未被锁定时检测)
                     if (!isMozartBraked && mozart != null && ballSensor != null) {
                         NormalizedRGBA colors = ballSensor.getNormalizedColors();
                         if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
@@ -461,29 +474,33 @@ public class EasyTT_Blue extends LinearOpMode {
                     }
 
                 } else {
-                    // >>> 优先级 3: 待机模式 <<<
-                    // 全停
                 }
 
-                // --- C. 执行硬件写入 ---
+                if (isManualStopped && !isFiringTrigger) {
+                    targetIntakePower = 0;
+                    targetWasherPower = 0;
+                    targetHoldPower = 0;
+                    targetClassifyPower = 0;
+                    targetMozartPower = 0;
+                }
+
                 if (intakeMotor != null) intakeMotor.setPower(targetIntakePower);
                 if (washer != null) washer.setPower(targetWasherPower);
                 if (holdServo != null) holdServo.setPower(targetHoldPower);
                 if (classifyServo != null) classifyServo.setPower(targetClassifyPower);
                 if (mozart != null) mozart.setPower(targetMozartPower);
 
-                // =================================================================
-
-                // --- Telemetry ---
-                telemetry.addData("Mode", isAimMode ? "AIMING (RUN-N-GUN)" : "Manual");
-                telemetry.addData("Vision Status", visionStatus);
-                telemetry.addData("Driver Offset", "%.1f deg", DRIVER_ORIENTATION_CORRECTION);
+                if (isManualStopped) {
+                    telemetry.addData("WARNING", "EMERGENCY STOP (Press A/RB/Y to Reset)");
+                }
+                telemetry.addData("Mode", isAimMode ? "AIMING (Auto)" : "MANUAL (D-Pad)");
+                telemetry.addData("Alliance", targetAlliance);
+                telemetry.addData("Target RPM", "%.0f (Tol: %.0f)", activeTargetRPM, currentRpmTolerance);
+                telemetry.addData("Target Angle", "%.2f deg", activeTargetAngle);
 
                 if (shMotor != null) {
-                    telemetry.addData("SH Tgt/Cur RPM", "%.0f / %.0f", targetRPM, currentRpm);
-                    if (isAimMode && isFiringTrigger) {
-                        telemetry.addData("Launch", isRpmReady ? "FIRING" : "SPINNING UP");
-                    }
+                    telemetry.addData("Launch", isFiringTrigger ? (isRpmReady ? "FIRING" : "WAIT RPM") : "IDLE");
+                    telemetry.addData("Cur RPM", "%.0f", currentRpmForCheck);
                 }
 
                 telemetry.update();
@@ -505,6 +522,11 @@ public class EasyTT_Blue extends LinearOpMode {
             if (shMotor != null) shMotor.setPower(0);
             if (mozart != null) mozart.setPower(0);
         }
+    }
+
+    private double calculateAngleFromPos(double pos) {
+        double clampedPos = Range.clip(pos, 0.0, 1.0);
+        return MIN_ANGLE_DEG + clampedPos * (MAX_ANGLE_DEG - MIN_ANGLE_DEG);
     }
 
     private void setLauncherServos(double angle) {
