@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -28,7 +29,9 @@ import org.firstinspires.ftc.teamcode.vision.QuickScope.ArcherLogic;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.CalculationParams;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.LaunchSolution;
 
-@TeleOp(name = "TeleOpRed", group = "Competition")
+import java.util.List;
+
+@TeleOp(name = "TeleOpBlue", group = "Competition")
 public class EasyTT_Blue extends LinearOpMode {
 
     private DcMotor leftFrontDrive = null;
@@ -89,6 +92,8 @@ public class EasyTT_Blue extends LinearOpMode {
     private static final double VISION_CORRECT_THRESHOLD = 0.05;
     private static final double VISION_DETECT_THRESHOLD = 0.5;
 
+    private static final double POSE_CORRECTION_DISTANCE_THRESHOLD_CM = 10.0;
+
     private static final double MIN_ANGLE_DEG = 39.999999999998;
     private static final double MAX_ANGLE_DEG = 67.444444444448;
 
@@ -105,7 +110,6 @@ public class EasyTT_Blue extends LinearOpMode {
     private double manualTargetAngle = 67.44;
     private double currentRpmTolerance = 50.0;
 
-    private double lastRumbleTime = 0.0;
     private String visionStatus = "Ready";
 
     private boolean lastRpmReady = false;
@@ -114,6 +118,11 @@ public class EasyTT_Blue extends LinearOpMode {
 
     @Override
     public void runOpMode() {
+
+        List<LynxModule> allHubs = hardwareMap.getAll(LynxModule.class);
+        for (LynxModule module : allHubs) {
+            module.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
+        }
 
         leftFrontDrive  = hardwareMap.get(DcMotor.class, "LeftFrontDrive");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "RightFrontDrive");
@@ -205,9 +214,12 @@ public class EasyTT_Blue extends LinearOpMode {
 
             runtime.reset();
             lastPidTime = runtime.seconds();
-            performVisionCorrection(0.0);
 
             while (opModeIsActive()) {
+
+                for (LynxModule module : allHubs) {
+                    module.clearBulkCache();
+                }
 
                 pinpointPoseProvider.update();
                 double robotX_cm = -pinpointPoseProvider.getX(DistanceUnit.CM);
@@ -233,13 +245,9 @@ public class EasyTT_Blue extends LinearOpMode {
                 if (smoothSpeed < VISION_DETECT_THRESHOLD) {
                     boolean corrected = performVisionCorrection(smoothSpeed);
                     if (corrected) {
-                        visionStatus = "Correcting (Active)";
-                        if (!isFiringTrigger && runtime.seconds() - lastRumbleTime > 1.0) {
-                            gamepad1.rumbleBlips(2);
-                            lastRumbleTime = runtime.seconds();
-                        }
+                        visionStatus = "CORRECTED (Vibration)";
                     } else {
-                        visionStatus = "Monitoring (No Replace)";
+                        visionStatus = "Monitoring (Stable)";
                     }
                 } else {
                     visionStatus = "Disabled (Too Fast/Stop)";
@@ -461,9 +469,11 @@ public class EasyTT_Blue extends LinearOpMode {
                     }
 
                     if (!isMozartBraked && mozart != null && ballSensor != null) {
-                        NormalizedRGBA colors = ballSensor.getNormalizedColors();
-                        if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
-                            isMozartBraked = true;
+                        if (isIntakeActive) {
+                            NormalizedRGBA colors = ballSensor.getNormalizedColors();
+                            if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
+                                isMozartBraked = true;
+                            }
                         }
                     }
 
@@ -494,9 +504,9 @@ public class EasyTT_Blue extends LinearOpMode {
                     telemetry.addData("WARNING", "EMERGENCY STOP (Press A/RB/Y to Reset)");
                 }
                 telemetry.addData("Mode", isAimMode ? "AIMING (Auto)" : "MANUAL (D-Pad)");
+                telemetry.addData("Vision Status", visionStatus);
                 telemetry.addData("Alliance", targetAlliance);
                 telemetry.addData("Target RPM", "%.0f (Tol: %.0f)", activeTargetRPM, currentRpmTolerance);
-                telemetry.addData("Target Angle", "%.2f deg", activeTargetAngle);
 
                 if (shMotor != null) {
                     telemetry.addData("Launch", isFiringTrigger ? (isRpmReady ? "FIRING" : "WAIT RPM") : "IDLE");
@@ -549,12 +559,26 @@ public class EasyTT_Blue extends LinearOpMode {
 
         if (visionPose != null) {
             if (currentSpeed < VISION_CORRECT_THRESHOLD) {
-                pinpointPoseProvider.setPose(visionPose);
-                double visionHeading = visionPose.getHeading(AngleUnit.DEGREES);
-                double rawImuYaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-                headingOffset = visionHeading - rawImuYaw;
-                lastVisionUpdateTime = runtime.seconds();
-                return true;
+
+                double currentX_cm = -pinpointPoseProvider.getX(DistanceUnit.CM);
+                double currentY_cm = pinpointPoseProvider.getY(DistanceUnit.CM);
+
+                double visionX_cm = visionPose.getX(DistanceUnit.CM);
+                double visionY_cm = visionPose.getY(DistanceUnit.CM);
+
+                double distError = Math.hypot(visionX_cm - currentX_cm, visionY_cm - currentY_cm);
+
+                if (distError > POSE_CORRECTION_DISTANCE_THRESHOLD_CM) {
+                    pinpointPoseProvider.setPose(visionPose);
+                    double visionHeading = visionPose.getHeading(AngleUnit.DEGREES);
+                    double rawImuYaw = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+                    headingOffset = visionHeading - rawImuYaw;
+                    lastVisionUpdateTime = runtime.seconds();
+
+                    gamepad1.rumbleBlips(2);
+
+                    return true;
+                }
             }
         }
         return false;
