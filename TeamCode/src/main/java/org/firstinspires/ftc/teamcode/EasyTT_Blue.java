@@ -84,14 +84,19 @@ public class EasyTT_Blue extends LinearOpMode {
     private LaunchSolution lastValidSolution = null;
 
     private SimpleKalmanFilter angleFilter = new SimpleKalmanFilter(2.0, 1.0, 0.1);
-    private double filteredLauncherAngle = 67.5;
 
+    // [新增] 目标角度滤波器 (Q=0.1 较强平滑，用于处理视觉抖动)
+    private SimpleKalmanFilter targetHeadingFilter = new SimpleKalmanFilter(2.0, 1.0, 0.25);
+
+    // [新增] D项微分滤波器 (Q=0.5 较弱平滑/响应快，用于去除IMU噪点)
+    private SimpleKalmanFilter dTermFilter = new SimpleKalmanFilter(2.0, 1.0, 0.8);
+
+    private double filteredLauncherAngle = 67.5;
     private double smoothSpeed = 0.0;
     private final double SPEED_FILTER_ALPHA = 0.7;
 
     private static final double VISION_CORRECT_THRESHOLD = 0.05;
     private static final double VISION_DETECT_THRESHOLD = 0.5;
-
     private static final double POSE_CORRECTION_DISTANCE_THRESHOLD_CM = 10.0;
 
     private static final double MIN_ANGLE_DEG = 39.999999999998;
@@ -100,6 +105,7 @@ public class EasyTT_Blue extends LinearOpMode {
     private double targetHeading = 0.0;
     private double headingLastError = 0.0;
     private double lastPidTime = 0.0;
+    private boolean firstTargetAcquired = false;
 
     private static final double P_TURN = 0.0101;
     private static final double D_TURN = 0.0005;
@@ -312,6 +318,7 @@ public class EasyTT_Blue extends LinearOpMode {
                     if (isAimMode) {
                         headingLastError = 0;
                         lastPidTime = runtime.seconds();
+                        firstTargetAcquired = false;
                         if (currentSolution == null) {
                             targetHeading = getRobotFieldHeading();
                         }
@@ -328,11 +335,21 @@ public class EasyTT_Blue extends LinearOpMode {
 
                 if (isAimMode && currentSolution != null && !isManualStopped) {
                     double rawHeadingDeg = currentSolution.aimAzimuthDeg + 180;
-                    targetHeading = normalizeAngle(rawHeadingDeg);
+                    double rawTarget = normalizeAngle(rawHeadingDeg);
+
+                    if (!firstTargetAcquired) {
+                        targetHeading = rawTarget;
+                        targetHeadingFilter.setEstimate(rawTarget);
+                        firstTargetAcquired = true;
+                    } else {
+                        targetHeading = targetHeadingFilter.updateEstimate(rawTarget);
+                    }
 
                     activeTargetRPM = currentSolution.motorRpm;
                     activeTargetAngle = currentSolution.launcherAngle;
                     currentRpmTolerance = 50.0;
+                } else {
+                    firstTargetAcquired = false;
                 }
 
                 if (shMotor != null) {
@@ -361,8 +378,11 @@ public class EasyTT_Blue extends LinearOpMode {
                     double currentHeading = getRobotFieldHeading();
                     double headingError = normalizeAngle(currentHeading - targetHeading);
 
+                    double rawTurnRate = (headingError - headingLastError) / dt;
+                    double filteredTurnRate = dTermFilter.updateEstimate(rawTurnRate);
+
                     double pTerm = headingError * P_TURN;
-                    double dTerm = (headingError - headingLastError) / dt * D_TURN;
+                    double dTerm = filteredTurnRate * D_TURN;
                     double pidOut = pTerm + dTerm;
 
                     if (Math.abs(headingError) > 1.0) {
@@ -616,6 +636,11 @@ public class EasyTT_Blue extends LinearOpMode {
             err_estimate = (1.0 - kalman_gain) * err_estimate + Math.abs(last_estimate - current_estimate) * q;
             last_estimate = current_estimate;
             return current_estimate;
+        }
+
+        public void setEstimate(double estimate) {
+            this.last_estimate = estimate;
+            this.current_estimate = estimate;
         }
     }
 }
