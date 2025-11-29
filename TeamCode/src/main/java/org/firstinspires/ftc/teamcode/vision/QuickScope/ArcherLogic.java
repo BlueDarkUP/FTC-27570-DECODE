@@ -26,8 +26,8 @@ public class ArcherLogic {
     private static final double REAL_FIELD_SIZE_INCHES = 141.170031;
     private static final double INCHES_TO_METERS = 0.0254;
     // 硬编码的目标坐标
-    private static final Vector2D TAG_BLUE = new Vector2D(0.06, 0.98); // 0.080 0.942
-    private static final Vector2D TAG_RED = new Vector2D(0.98, 0.98);  // 0.920 0.942
+    private static final Vector2D TAG_BLUE = new Vector2D(0.01, 0.968); // 0.080 0.942
+    private static final Vector2D TAG_RED = new Vector2D(0.99, 0.968);  // 0.920 0.942
 
     /**
      * 这是唯一需要从外部调用的公共方法。
