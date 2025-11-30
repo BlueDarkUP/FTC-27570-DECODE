@@ -58,6 +58,9 @@ public class EasyTT_Blue extends LinearOpMode {
     private RobotVision robotVision = new RobotVision();
     private boolean visionInitialized = false;
 
+    private boolean isClassificationEnabled = false;
+    private boolean lastLeftBumper = false;
+
     private IMU imu = null;
 
     private IPoseProvider pinpointPoseProvider;
@@ -65,7 +68,6 @@ public class EasyTT_Blue extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
 
     private boolean isIntakeActive = false;
-
     private boolean lastAButton = false;
 
     private boolean isAimMode = false;
@@ -205,7 +207,7 @@ public class EasyTT_Blue extends LinearOpMode {
         }
 
         telemetry.addLine("Ready. Alliance Locked to Blue.");
-        telemetry.addLine("Controls: A=Intake, X=Stop, Y=Fire, RB=Aim, R-Stick=Turn");
+        telemetry.addLine("LB: Toggle Sort | A: Intake | X: Stop | Y: Fire | RB: Aim");
         telemetry.update();
 
         waitForStart();
@@ -228,7 +230,9 @@ public class EasyTT_Blue extends LinearOpMode {
                 double normalizationX = robotX_cm / 365.76;
                 double normalizationY = robotY_cm / 365.76;
 
-                if (visionInitialized && !isIntakeActive) {
+                boolean isVisionInTagMode = !isIntakeActive || !isClassificationEnabled;
+
+                if (visionInitialized && isVisionInTagMode) {
                     robotVision.updateDecimationByNormalizedPos(normalizationX, normalizationY);
                 }
 
@@ -244,16 +248,27 @@ public class EasyTT_Blue extends LinearOpMode {
                 if (isFiringTrigger) {
                     isManualStopped = false;
                 }
+                boolean isCriticalFiringMoment = isAimMode && isFiringTrigger;
 
-                if (smoothSpeed < VISION_DETECT_THRESHOLD && !isIntakeActive) {
+                if (smoothSpeed < VISION_DETECT_THRESHOLD && isVisionInTagMode && !isCriticalFiringMoment) {
+
                     boolean corrected = performVisionCorrection(smoothSpeed);
+
                     if (corrected) {
                         visionStatus = "CORRECTED (Vibration)";
                     } else {
                         visionStatus = "Monitoring (Stable)";
                     }
                 } else {
-                    visionStatus = "Disabled (Too Fast/Intake)";
+                    if (!isVisionInTagMode) {
+                        visionStatus = "Disabled (Color Mode)";
+                    } else if (smoothSpeed >= VISION_DETECT_THRESHOLD) {
+                        visionStatus = "Disabled (Moving Fast)";
+                    } else if (isCriticalFiringMoment) {
+                        visionStatus = "LOCKED (Firing)";
+                    } else {
+                        visionStatus = "Disabled";
+                    }
                 }
 
                 double direction_deg = Math.toDegrees(Math.atan2(cartesianVelY_m_s, cartesianVelX_m_s));
@@ -263,6 +278,9 @@ public class EasyTT_Blue extends LinearOpMode {
                     isManualStopped = true;
                     isIntakeActive = false;
                     isAimMode = false;
+
+                    isClassificationEnabled = false;
+
                     manualTargetRPM = 1500.0;
                     isMozartBraked = false;
 
@@ -323,6 +341,21 @@ public class EasyTT_Blue extends LinearOpMode {
                     }
                 }
                 lastRightBumper = currentRightBumper;
+
+                boolean currentLeftBumper = gamepad1.left_bumper;
+                if (currentLeftBumper && !lastLeftBumper) {
+                    isClassificationEnabled = !isClassificationEnabled;
+                    gamepad1.rumbleBlips(1);
+
+                    if (isIntakeActive && !isManualStopped && visionInitialized) {
+                        if (isClassificationEnabled) {
+                            robotVision.switchToColorMode();
+                        } else {
+                            robotVision.switchToAprilTagMode();
+                        }
+                    }
+                }
+                lastLeftBumper = currentLeftBumper;
 
                 double activeTargetRPM = manualTargetRPM;
                 double activeTargetAngle = manualTargetAngle;
@@ -430,7 +463,13 @@ public class EasyTT_Blue extends LinearOpMode {
                     isIntakeActive = !isIntakeActive;
                     if (isIntakeActive) {
                         isMozartBraked = false;
-                        if (visionInitialized) robotVision.switchToColorMode();
+
+                        if (isClassificationEnabled) {
+                            if (visionInitialized) robotVision.switchToColorMode();
+                        } else {
+                            if (visionInitialized) robotVision.switchToAprilTagMode();
+                        }
+
                         if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
                     } else {
                         if (visionInitialized) robotVision.switchToAprilTagMode();
@@ -455,7 +494,6 @@ public class EasyTT_Blue extends LinearOpMode {
                         targetHoldPower = 0.0;
                         targetClassifyPower = 0.0;
                     }
-
                     targetIntakePower = 0.0;
                     targetWasherPower = 0.0;
                     isMozartBraked = false;
@@ -465,30 +503,34 @@ public class EasyTT_Blue extends LinearOpMode {
                     targetWasherPower = 1.0;
                     targetHoldPower = 1.0;
 
-                    if (!visionInitialized) {
+                    if (!isClassificationEnabled) {
                         targetClassifyPower = 1.0;
-                    } else {
-                        ColorBlobProcessor.DetectionResult result = robotVision.getColorResult();
 
-                        if (result == ColorBlobProcessor.DetectionResult.GREEN) {
-                            targetClassifyPower = -1.0;
-                            lastDetectedDirection = 1.0;
-                            hasDetectedAnyColor = true;
-                        } else if (result == ColorBlobProcessor.DetectionResult.PURPLE) {
+                        isMozartBraked = false;
+                    } else {
+                        if (!visionInitialized) {
                             targetClassifyPower = 1.0;
-                            lastDetectedDirection = -1.0;
-                            hasDetectedAnyColor = true;
                         } else {
-                            if (hasDetectedAnyColor) {
-                                targetClassifyPower = -lastDetectedDirection * 0.5;
-                            } else {
+                            ColorBlobProcessor.DetectionResult result = robotVision.getColorResult();
+
+                            if (result == ColorBlobProcessor.DetectionResult.GREEN) {
+                                targetClassifyPower = -1.0;
+                                lastDetectedDirection = 1.0;
+                                hasDetectedAnyColor = true;
+                            } else if (result == ColorBlobProcessor.DetectionResult.PURPLE) {
                                 targetClassifyPower = 1.0;
+                                lastDetectedDirection = -1.0;
+                                hasDetectedAnyColor = true;
+                            } else {
+                                if (hasDetectedAnyColor) {
+                                    targetClassifyPower = -lastDetectedDirection * 0.5;
+                                } else {
+                                    targetClassifyPower = 1.0;
+                                }
                             }
                         }
-                    }
 
-                    if (!isMozartBraked && mozart != null && ballSensor != null) {
-                        if (isIntakeActive) {
+                        if (!isMozartBraked && mozart != null && ballSensor != null) {
                             NormalizedRGBA colors = ballSensor.getNormalizedColors();
                             if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
                                 isMozartBraked = true;
@@ -518,11 +560,11 @@ public class EasyTT_Blue extends LinearOpMode {
                 if (holdServo != null) holdServo.setPower(targetHoldPower);
                 if (classifyServo != null) classifyServo.setPower(targetClassifyPower);
                 if (mozart != null) mozart.setPower(targetMozartPower);
-
                 if (isManualStopped) {
                     telemetry.addData("WARNING", "EMERGENCY STOP (Press A/RB/Y to Reset)");
                 }
-                telemetry.addData("Mode", isAimMode ? "AIMING (Auto)" : "MANUAL (D-Pad)");
+
+                telemetry.addData("Classify (LB)", isClassificationEnabled ? "ON (ColorCam)" : "OFF (TagCam)");
                 telemetry.addData("Vision Status", visionStatus);
                 telemetry.addData("Alliance", targetAlliance);
                 telemetry.addData("Target RPM", "%.0f (Tol: %.0f)", activeTargetRPM, currentRpmTolerance);

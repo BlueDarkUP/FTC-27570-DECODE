@@ -248,16 +248,27 @@ public class EasyTT_Red extends LinearOpMode {
                 if (isFiringTrigger) {
                     isManualStopped = false;
                 }
+                boolean isCriticalFiringMoment = isAimMode && isFiringTrigger;
 
-                if (smoothSpeed < VISION_DETECT_THRESHOLD && isVisionInTagMode) {
+                if (smoothSpeed < VISION_DETECT_THRESHOLD && isVisionInTagMode && !isCriticalFiringMoment) {
+
                     boolean corrected = performVisionCorrection(smoothSpeed);
+
                     if (corrected) {
                         visionStatus = "CORRECTED (Vibration)";
                     } else {
                         visionStatus = "Monitoring (Stable)";
                     }
                 } else {
-                    visionStatus = "Disabled (Color Mode / Fast)";
+                    if (!isVisionInTagMode) {
+                        visionStatus = "Disabled (Color Mode)";
+                    } else if (smoothSpeed >= VISION_DETECT_THRESHOLD) {
+                        visionStatus = "Disabled (Moving Fast)";
+                    } else if (isCriticalFiringMoment) {
+                        visionStatus = "LOCKED (Firing)";
+                    } else {
+                        visionStatus = "Disabled";
+                    }
                 }
 
                 double direction_deg = Math.toDegrees(Math.atan2(cartesianVelY_m_s, cartesianVelX_m_s));
