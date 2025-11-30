@@ -26,7 +26,7 @@ public class ColorBlobProcessor implements VisionProcessor {
     private Mat tinyMat = new Mat();
     private Mat ycrcb = new Mat();
     private Mat mask = new Mat();
-    private Size tinySize = new Size(80, 60);
+    private Size tinySize = new Size(60, 60);
 
     // 阈值 (保持你原来的数值)
     private Scalar greenLower = new Scalar(0, 0, 0);
