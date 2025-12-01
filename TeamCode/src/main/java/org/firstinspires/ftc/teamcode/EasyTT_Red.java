@@ -124,11 +124,6 @@ public class EasyTT_Red extends LinearOpMode {
     @Override
     public void runOpMode() {
 
-        List<LynxModule> allHubs = hardwareMap.getAll(LynxModule.class);
-        for (LynxModule module : allHubs) {
-            module.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
-        }
-
         leftFrontDrive  = hardwareMap.get(DcMotor.class, "LeftFrontDrive");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "RightFrontDrive");
         leftBehindDrive = hardwareMap.get(DcMotor.class, "LeftBehindDrive");
@@ -219,10 +214,6 @@ public class EasyTT_Red extends LinearOpMode {
             lastPidTime = runtime.seconds();
 
             while (opModeIsActive()) {
-
-                for (LynxModule module : allHubs) {
-                    module.clearBulkCache();
-                }
 
                 pinpointPoseProvider.update();
                 double robotX_cm = -pinpointPoseProvider.getX(DistanceUnit.CM);

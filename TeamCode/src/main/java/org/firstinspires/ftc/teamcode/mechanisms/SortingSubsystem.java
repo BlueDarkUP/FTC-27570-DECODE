@@ -37,8 +37,8 @@ public class SortingSubsystem {
     // 策略表
     private Map<String, List<Runnable>> strategyTable;
 
-    private static final double BBB_INTAKE_POS = 0.25;
-    private static final double BBB_SWAP_POS   = 0.98;
+    private static final double BBB_INTAKE_POS = 0.92;
+    private static final double BBB_SWAP_POS   = 0.35;
 
     private static final double POWER_FULL = 1.0;
     private static final double POWER_REVERSE_FULL = -1.0;
@@ -289,7 +289,7 @@ public class SortingSubsystem {
                 classifyServo.setPower(POWER_REVERSE_FULL);
 
                 // C. 短暂延时，避开传感器误读 (可选)
-                sleep(150);
+                sleep(478);
 
                 // D. 等待新球进入缓存 (color2 有读数)
                 while (opModeActiveCheck.getAsBoolean()) {
@@ -374,8 +374,7 @@ public class SortingSubsystem {
         strategyTable.put("PGP_PGP", Arrays.asList(this::actPass));
         // [修正] PGP -> PPG: 抽取P, 置换(抓G吐P), 插尾
         strategyTable.put("PGP_PPG", Arrays.asList(
-                () -> actExtract(P),
-                () -> actSwap(G),
+                () -> actExtract(G),
                 this::actInsertEnd
         ));
 
