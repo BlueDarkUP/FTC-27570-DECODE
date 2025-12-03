@@ -10,6 +10,9 @@ public class ArcherLogic {
     private static final double MASS_KG = 0.012;
     private static final double DRAG_COEFFICIENT = 0.25;
     private static final double CROSS_SECTIONAL_AREA_M2 = 0.00928;
+    // 1.0 = 物理真实。 >1.0 = 激进补偿（放大移动带来的影响）。
+    private static final double VELOCITY_COMPENSATION_FACTOR = 1.35;
+
     // 计算参数
     private static final double MIN_ANGLE_DEG = 40;
     private static final double MAX_ANGLE_DEG = 67.5;
@@ -45,7 +48,11 @@ public class ArcherLogic {
 
         double vVehicleMs = params.vehicleSpeedMs;
         double vehicleDirRad = Math.toRadians(params.vehicleDirectionDeg);
-        Vector2D vVehicleVec = new Vector2D(vVehicleMs * Math.cos(vehicleDirRad), vVehicleMs * Math.sin(vehicleDirRad));
+
+        Vector2D vVehicleVec = new Vector2D(
+                vVehicleMs * Math.cos(vehicleDirRad) * VELOCITY_COMPENSATION_FACTOR,
+                vVehicleMs * Math.sin(vehicleDirRad) * VELOCITY_COMPENSATION_FACTOR
+        );
 
         LaunchSolution minVSol = null;
         double lastMinLauncherV = Double.POSITIVE_INFINITY;

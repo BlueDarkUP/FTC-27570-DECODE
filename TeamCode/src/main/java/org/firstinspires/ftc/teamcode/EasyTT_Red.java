@@ -80,6 +80,11 @@ public class EasyTT_Red extends LinearOpMode {
     private SimpleKalmanFilter angleFilter = new SimpleKalmanFilter(2.0, 1.0, 0.1);
     private double filteredLauncherAngle = 67.5;
 
+    // 0.25 表示新值占 25% 权重，旧值占 75%。数值越小越平滑，越大反应越快。
+    private static final double AZIMUTH_FILTER_ALPHA = 0.25;
+    private double smoothedTargetHeading = 0.0;
+    private boolean isFirstAimLoop = true;
+
     private double smoothSpeed = 0.0;
     private final double SPEED_FILTER_ALPHA = 0.7;
 
@@ -291,8 +296,12 @@ public class EasyTT_Red extends LinearOpMode {
                     if (isAimMode) {
                         headingLastError = 0;
                         lastPidTime = runtime.seconds();
+
+                        isFirstAimLoop = true;
+
                         if (currentSolution == null) {
                             targetHeading = getRobotFieldHeading();
+                            smoothedTargetHeading = targetHeading;
                         }
                     }
                 }
@@ -307,7 +316,16 @@ public class EasyTT_Red extends LinearOpMode {
 
                 if (isAimMode && currentSolution != null && !isManualStopped) {
                     double rawHeadingDeg = currentSolution.aimAzimuthDeg + 180;
-                    targetHeading = normalizeAngle(rawHeadingDeg);
+
+                    if (isFirstAimLoop) {
+                        smoothedTargetHeading = rawHeadingDeg;
+                        isFirstAimLoop = false;
+                    } else {
+                        smoothedTargetHeading = (AZIMUTH_FILTER_ALPHA * rawHeadingDeg) +
+                                ((1.0 - AZIMUTH_FILTER_ALPHA) * smoothedTargetHeading);
+                    }
+
+                    targetHeading = normalizeAngle(smoothedTargetHeading);
 
                     activeTargetRPM = currentSolution.motorRpm;
                     activeTargetAngle = currentSolution.launcherAngle;
