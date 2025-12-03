@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -30,7 +29,6 @@ import org.firstinspires.ftc.teamcode.vision.QuickScope.ArcherLogic;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.CalculationParams;
 import org.firstinspires.ftc.teamcode.vision.QuickScope.LaunchSolution;
 
-import java.util.List;
 
 @TeleOp(name = "TeleOpRed", group = "Competition")
 public class EasyTT_Red extends LinearOpMode {

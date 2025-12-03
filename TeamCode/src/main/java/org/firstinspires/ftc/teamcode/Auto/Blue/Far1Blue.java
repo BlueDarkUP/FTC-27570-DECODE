@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Auto;
+package org.firstinspires.ftc.teamcode.Auto.Blue;
 
 
 import com.pedropathing.follower.Follower;
@@ -21,8 +21,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Far1CO_Structure", group = "PedroPathing")
-public class Far1CO extends OpMode {
+@Autonomous(name = "远点 一排 蓝方", group = "PedroPathing")
+public class Far1Blue extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer;
@@ -187,7 +187,7 @@ public class Far1CO extends OpMode {
             case 1: // Wait for Path 1 -> Shoot Preload
                 if (!follower.isBusy()) {
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 5.0) { // 发射 2秒
+                    if (actionTimer.getElapsedTimeSeconds() > 4.3) { // 发射 2秒
                         stopShooting();
                         setPathState(2);
                     }
@@ -233,7 +233,7 @@ public class Far1CO extends OpMode {
             case 7: // Wait for Path 4 -> Shoot Cycle 1
                 if (!follower.isBusy()) {
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 5.0) {
+                    if (actionTimer.getElapsedTimeSeconds() > 4.3) {
                         stopShooting();
                         setPathState(8);
                     }
@@ -299,7 +299,7 @@ public class Far1CO extends OpMode {
             case 17: // Wait for Path 9 -> Shoot Cycle 2
                 if (!follower.isBusy()) {
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 5.0) {
+                    if (actionTimer.getElapsedTimeSeconds() > 4.3) {
                         stopShooting();
                         setPathState(18);
                     }

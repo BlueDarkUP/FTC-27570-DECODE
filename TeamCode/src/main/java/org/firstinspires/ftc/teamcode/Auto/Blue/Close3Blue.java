@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Auto;
+package org.firstinspires.ftc.teamcode.Auto.Blue;
 
 import static java.lang.Thread.sleep;
 
@@ -12,7 +12,6 @@ import com.pedropathing.util.Timer;
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode.*;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -23,8 +22,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Close3CO_Structure", group = "PedroPathing")
-public class Close3CO extends OpMode {
+@Autonomous(name = "近点 三排 蓝方", group = "PedroPathing")
+public class Close3Blue extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer;
@@ -85,7 +84,7 @@ public class Close3CO extends OpMode {
         // Path 4: 推闸/机动
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(19.840, 83.644), new Pose(30.000, 77.000), new Pose(17.000, 73.000)))
+                .addPath(new BezierCurve(new Pose(19.840, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
@@ -103,7 +102,7 @@ public class Close3CO extends OpMode {
 
         // Path 7: 吸取 2
         path7_Intake2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(40.000, 62.640), new Pose(8.500, 59.640)))
+                .addPath(new BezierLine(new Pose(48.000, 62.640), new Pose(8.500, 59.640)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
@@ -271,7 +270,7 @@ public class Close3CO extends OpMode {
             case 9: // 等待 Path 5 完成 -> 发射 Cycle 1
                 if (!follower.isBusy()) {
                     runShooterLogic(2550);
-                    if (actionTimer.getElapsedTimeSeconds() > 3.0) {
+                    if (actionTimer.getElapsedTimeSeconds() > 2.5) {
                         stopShooting();
                         setPathState(10);
                     }
@@ -317,7 +316,7 @@ public class Close3CO extends OpMode {
             case 15: // 等待 Path 8 完成 -> 发射 Cycle 2
                 if (!follower.isBusy()) {
                     runShooterLogic(2550);
-                    if (actionTimer.getElapsedTimeSeconds() > 3.0) {
+                    if (actionTimer.getElapsedTimeSeconds() > 2.5) {
                         stopShooting();
                         setPathState(16);
                     }
@@ -363,7 +362,7 @@ public class Close3CO extends OpMode {
             case 21: // 等待 Path 11 完成 -> 发射 Cycle 3
                 if (!follower.isBusy()) {
                     runShooterLogic(2550);
-                    if (actionTimer.getElapsedTimeSeconds() > 3.0) {
+                    if (actionTimer.getElapsedTimeSeconds() > 2.5) {
                         stopShooting();
                         setPathState(22);
                     }
