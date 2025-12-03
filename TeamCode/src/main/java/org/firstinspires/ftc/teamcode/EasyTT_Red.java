@@ -16,7 +16,6 @@ import com.qualcomm.robotcore.util.Range;
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 
-import org.firstinspires.ftc.teamcode.vision.Class.ColorClassifier;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -50,8 +49,6 @@ public class EasyTT_Red extends LinearOpMode {
 
     private DcMotor mozart = null;
     private RevColorSensorV3 ballSensor = null;
-
-    private ColorClassifier vision = new ColorClassifier();
     private boolean visionInitialized = false;
     private IMU imu = null;
 
@@ -185,15 +182,6 @@ public class EasyTT_Red extends LinearOpMode {
         pinpointPoseProvider.initialize();
         archerLogic = new ArcherLogic();
 
-        try {
-            vision.init(hardwareMap, "ClassifyCam", telemetry);
-            visionInitialized = true;
-            vision.setEnabled(false);
-        } catch (Exception e) {
-            visionInitialized = false;
-            telemetry.addData("Vision Error", e.getMessage());
-        }
-
         telemetry.addLine("Ready. Alliance Locked to RED.");
         telemetry.addLine("Controls: A=Intake, X=Stop, Y=Fire, RB=Aim, R-Stick=Turn");
         telemetry.update();
@@ -255,7 +243,6 @@ public class EasyTT_Red extends LinearOpMode {
                     manualTargetRPM = 1500.0;
                     isMozartBraked = false;
                     if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-                    if (visionInitialized) vision.setEnabled(false);
 
                     gamepad1.rumbleBlips(1);
                 }
@@ -404,10 +391,8 @@ public class EasyTT_Red extends LinearOpMode {
                     isIntakeActive = !isIntakeActive;
                     if (isIntakeActive) {
                         isMozartBraked = false;
-                        if (visionInitialized) vision.setEnabled(true);
                         if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
                     } else {
-                        if (visionInitialized) vision.setEnabled(false);
                         if (mozart != null) mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
                     }
                 }
@@ -441,23 +426,6 @@ public class EasyTT_Red extends LinearOpMode {
 
                     if (!visionInitialized) {
                         targetClassifyPower = 1.0;
-                    } else {
-                        ColorClassifier.DetectionResult result = vision.getResult();
-                        if (result == ColorClassifier.DetectionResult.GREEN) {
-                            targetClassifyPower = -1.0;
-                            lastDetectedDirection = 1.0;
-                            hasDetectedAnyColor = true;
-                        } else if (result == ColorClassifier.DetectionResult.PURPLE) {
-                            targetClassifyPower = 1.0;
-                            lastDetectedDirection = -1.0;
-                            hasDetectedAnyColor = true;
-                        } else {
-                            if (hasDetectedAnyColor) {
-                                targetClassifyPower = -lastDetectedDirection * 0.5;
-                            } else {
-                                targetClassifyPower = 1.0;
-                            }
-                        }
                     }
 
                     if (!isMozartBraked && mozart != null && ballSensor != null) {
@@ -511,9 +479,6 @@ public class EasyTT_Red extends LinearOpMode {
             telemetry.addData("Error", e.getMessage());
             telemetry.update();
         } finally {
-            if (visionInitialized && vision != null) {
-                try { vision.close(); } catch (Exception e) { }
-            }
             if (aprilTagLocalizer != null) {
                 try { aprilTagLocalizer.close(); } catch (Exception e) { }
             }
