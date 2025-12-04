@@ -1,6 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.Red; // 包名修改为 Red
-
-import static java.lang.Thread.sleep;
+package org.firstinspires.ftc.teamcode.Auto.Norm.Red; // 注意包名可能需要改为 Red
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -22,8 +20,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "近点 三排 红方", group = "PedroPathing")
-public class Close3Red extends OpMode {
+@Autonomous(name = "近点 两排 红方", group = "PedroPathing")
+public class Close2Red extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer;
@@ -31,7 +29,7 @@ public class Close3Red extends OpMode {
     // 状态机变量
     private int pathState = 0;
 
-    // --- 防走火状态锁 ---
+    // --- 新增：防走火状态锁 ---
     private boolean isMozartBraked = false;
 
     // 硬件定义
@@ -49,9 +47,6 @@ public class Close3Red extends OpMode {
     private PathChain path6_ToSpike2;
     private PathChain path7_Intake2;
     private PathChain path8_Score2;
-    private PathChain path9_ToSpike3;
-    private PathChain path10_Intake3;
-    private PathChain path11_Score3;
     private PathChain path12_Park;
 
     // 常量配置
@@ -59,13 +54,13 @@ public class Close3Red extends OpMode {
     private static final double GEAR_RATIO = 1.0;
     PathConstraints slowConstraints = new PathConstraints(30.0, 10.0, 1.0, 1.0);
 
-    // 定义起始姿态 (镜像变换: X=144-33.6, Heading=180-270=-90)
-    private final Pose startPose = new Pose(110.400, 135.560, Math.toRadians(-90));
+    // 定义起始姿态 (镜像: X=144-33.6, Heading=180-270)
+    private final Pose startPose = new Pose(110.400, 135.560, Math.toRadians(-90)); // -90等同于270
 
     public void buildPaths() {
         // Path 1: Preload
         // End X: 144 - 48.5 = 95.5
-        // Heading: -48 -> 228
+        // Heading: 180 - (-48) = 228
         path1_Preload = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(110.400, 135.560), new Pose(95.500, 95.900)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(228))
@@ -74,7 +69,7 @@ public class Close3Red extends OpMode {
         // Path 2: 观测
         // Control X: 144 - 60 = 84
         // End X: 144 - 42.4 = 101.6
-        // Heading: 180 -> 0
+        // Heading: 180 - 180 = 0
         path2_ToObelisk = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(95.500, 95.900), new Pose(84.000, 83.170), new Pose(101.600, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(228), Math.toRadians(0))
@@ -90,7 +85,7 @@ public class Close3Red extends OpMode {
                 .build();
 
         // Path 4: 推闸/机动
-        // Start X: 144 - 19.84 = 124.16
+        // Start X: 144 - 19.840 = 124.16
         // Control X: 144 - 30 = 114
         // End X: 144 - 18 = 126
         path4_Maneuver = follower.pathBuilder()
@@ -133,32 +128,6 @@ public class Close3Red extends OpMode {
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(228))
                 .build();
 
-        // Path 9: 准备吸第三排
-        // End X: 144 - 48 = 96
-        // Heading: 228 -> 0
-        path9_ToSpike3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(84.100, 84.000), new Pose(96.000, 40.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(228), Math.toRadians(0))
-                .build();
-
-        // Path 10: 吸取 3
-        // Start X: 144 - 41 = 103
-        // End X: 144 - 8.5 = 135.5
-        path10_Intake3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(103.000, 40.000), new Pose(135.500, 40.500)))
-                .setConstraints(slowConstraints)
-                .setTangentHeadingInterpolation()
-                .build();
-
-        // Path 11: 发射 Cycle 3
-        // Start X: 144 - 21.5 = 122.5
-        // End X: 144 - 59.9 = 84.1
-        // Heading: 0 -> 228
-        path11_Score3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(122.500, 35.500), new Pose(84.100, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(228))
-                .build();
-
         // Path 12: 停车
         // Start X: 144 - 59.76 = 84.24
         // End X: 144 - 28 = 116
@@ -186,7 +155,6 @@ public class Close3Red extends OpMode {
         Hold = hardwareMap.get(CRServo.class, "Hold");
         ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
 
-        // 修改为 RevColorSensorV3
         color = hardwareMap.get(RevColorSensorV3.class, "color");
 
         // --- 电机配置 ---
@@ -204,7 +172,7 @@ public class Close3Red extends OpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
-        telemetry.addData("Status", "Close3Red Initialized");
+        telemetry.addData("Status", "Close2Red Initialized");
         telemetry.update();
     }
 
@@ -225,11 +193,11 @@ public class Close3Red extends OpMode {
         telemetry.addData("Y", follower.getPose().getY());
         telemetry.addData("Heading", Math.toDegrees(follower.getPose().getHeading()));
         telemetry.addData("SH RPM", getShooterRPM());
-        telemetry.addData("Mozart Braked", isMozartBraked); // 调试信息
+        telemetry.addData("Mozart Braked", isMozartBraked);
         telemetry.update();
     }
 
-    // --- 状态机逻辑 ---
+    // --- 状态机逻辑 (逻辑部分与蓝方完全一致，仅调用路径不同) ---
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0: // 开始 Path 1 (Preload)
@@ -262,7 +230,6 @@ public class Close3Red extends OpMode {
                 break;
 
             case 4: // 开始 Path 3 (吸取 1)
-                // --- 关键修改：进入吸取状态前重置防走火标志 ---
                 isMozartBraked = false;
                 follower.setMaxPower(0.9);
                 follower.followPath(path3_Intake1, false);
@@ -270,7 +237,7 @@ public class Close3Red extends OpMode {
                 break;
 
             case 5: // Path 3 运行中
-                runIntakeLogic(); // 执行吸取逻辑
+                runIntakeLogic();
                 if (!follower.isBusy()) {
                     setPathState(6);
                 }
@@ -321,7 +288,6 @@ public class Close3Red extends OpMode {
                 break;
 
             case 12: // 开始 Path 7 (吸取 2)
-                // --- 关键修改：重置标志 ---
                 isMozartBraked = false;
                 follower.setMaxPower(0.7);
                 follower.followPath(path7_Intake2, false);
@@ -355,58 +321,12 @@ public class Close3Red extends OpMode {
                 }
                 break;
 
-            case 16: // 开始 Path 9 (去 Spike 3)
-                follower.followPath(path9_ToSpike3, true);
+            case 16: // 开始 Path 12 (停车)
+                follower.followPath(path12_Park, true);
                 setPathState(17);
                 break;
 
-            case 17: // 等待 Path 9
-                if (!follower.isBusy()) {
-                    setPathState(18);
-                }
-                break;
-
-            case 18: // 开始 Path 10 (吸取 3)
-                // --- 关键修改：重置标志 ---
-                isMozartBraked = false;
-                follower.setMaxPower(0.7);
-                follower.followPath(path10_Intake3, false);
-                setPathState(19);
-                break;
-
-            case 19: // Path 10 运行中
-                runIntakeLogic();
-                if (!follower.isBusy()) {
-                    setPathState(20);
-                }
-                break;
-
-            case 20: // 开始 Path 11 (回分 Cycle 3)
-                stopIntake();
-                follower.setMaxPower(1);
-                follower.followPath(path11_Score3, true);
-                SH.setVelocity(2550);
-                setPathState(21);
-                break;
-
-            case 21: // 等待 Path 11 完成 -> 发射 Cycle 3
-                if (!follower.isBusy()) {
-                    runShooterLogic(2550);
-                    if (actionTimer.getElapsedTimeSeconds() > 2.5) {
-                        stopShooting();
-                        setPathState(22);
-                    }
-                } else {
-                    actionTimer.resetTimer();
-                }
-                break;
-
-            case 22: // 开始 Path 12 (停车)
-                follower.followPath(path12_Park, true);
-                setPathState(23);
-                break;
-
-            case 23: // 结束
+            case 17: // 结束
                 if (!follower.isBusy()) {
                     setPathState(-1);
                 }
@@ -450,29 +370,23 @@ public class Close3Red extends OpMode {
         return (SH.getVelocity() * 60.0) / (TICKS_PER_REV * GEAR_RATIO);
     }
 
-    /**
-     * 吸取逻辑
-     */
     private void runIntakeLogic() {
-        // 1. 基础结构开启
         Intake.setPower(1.0);
         washer.setPower(1.0);
         Hold.setPower(1.0);
         ClassifyServo.setPower(1.0);
 
-        // 2. 防走火检测
         NormalizedRGBA colors = color.getNormalizedColors();
         if (!isMozartBraked) {
             if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
-                isMozartBraked = true; // 锁定刹车状态
+                isMozartBraked = true;
             }
         }
 
-        // 3. 根据状态控制 MOZART
         if (isMozartBraked) {
-            MOZART.setPower(0.0); // 停止
+            MOZART.setPower(0.0);
         } else {
-            MOZART.setPower(1.0); // 运行
+            MOZART.setPower(1.0);
         }
     }
 

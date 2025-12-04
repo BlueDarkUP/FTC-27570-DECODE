@@ -1,10 +1,12 @@
-package org.firstinspires.ftc.teamcode.auto.Red;
+package org.firstinspires.ftc.teamcode.Auto.Norm.Blue;
+
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
+import com.pedropathing.paths.PathConstraints;
 import com.pedropathing.util.Timer;
 import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -19,8 +21,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "远点 不吸 红方", group = "PedroPathing")
-public class Far0Red extends OpMode {
+@Autonomous(name = "远点 一排 蓝方", group = "PedroPathing")
+public class Far1Blue extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer;
@@ -37,83 +39,83 @@ public class Far0Red extends OpMode {
 
     // 路径对象
     private PathChain path1_Preload;
+    private PathChain path2_ToIntakePos;
+    private PathChain path3_Intake1;
+    private PathChain path4_Score1;
     private PathChain path5_Sip1;
     private PathChain path6_Sip2;
     private PathChain path7_Sip3;
-    private PathChain path8_Sip4;
-    private PathChain path9_Score;
+    private PathChain path9_Score2; // 补全的回分路径
     private PathChain path10_Park;
 
     // 常量
     private static final double TICKS_PER_REV = 28.0;
     private static final double GEAR_RATIO = 1.0;
+    // 远端投射需要的 RPM
     private static final double FAR_SHOT_RPM = 3100.0;
 
-    // 起始姿态
-    // X: 144 - 56.2 = 87.8
-    // Heading: 180 - 270 = -90
-    private final Pose startPose = new Pose(87.800, 8.080, Math.toRadians(-90));
+    // 慢速约束 (用于吸取阶段)
+    PathConstraints slowConstraints = new PathConstraints(15.0, 10.0, 1.0, 1.0);
+
+    // 起始姿态 (Far Side)
+    private final Pose startPose = new Pose(56.200, 8.080, Math.toRadians(270));
 
     public void buildPaths() {
-        // Path 1: 预载
-        // End X: 144 - 57.8 = 86.2
-        // Heading: 180 - (-69) = 249
+        // Path 1: 预载去发射位
         path1_Preload = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(87.800, 8.080), new Pose(86.200, 14.250)))
-                .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(249))
+                .addPath(new BezierLine(new Pose(56.200, 8.080), new Pose(57.800, 14.250)))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-69))
                 .build();
 
+        // Path 2: 去吸取准备位
+        path2_ToIntakePos = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(57.800, 14.250), new Pose(48.280, 34.00)))
+                .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(180))
+                .build();
+
+        // Path 3: 吸取第一个样本
+        path3_Intake1 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(48.280, 36.100), new Pose(7.500, 33.00)))
+                .setConstraints(slowConstraints) // 使用慢速更稳定
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                .build();
+
+        // Path 4: 回分 (Cycle 1)
+        path4_Score1 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(7.500, 35.500), new Pose(57.800, 14.250)))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-69))
+                .build();
+
+        // --- 连贯吸取序列 (Path 5 - 8) ---
         // Path 5: 嘬一口
-        // End X: 144 - 11 = 133
-        // Heading: 249 -> 180 - (-156) = 336
         path5_Sip1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(86.200, 14.250), new Pose(133.000, 17.220)))
-                .setLinearHeadingInterpolation(Math.toRadians(249), Math.toRadians(336))
+                .addPath(new BezierLine(new Pose(57.800, 14.250), new Pose(11.000, 17.220)))
+                .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(-156))
                 .build();
 
         // Path 6: 嘬两口
-        // Control X: 144 - 14.37 = 129.63
-        // End X: 144 - 11.16 = 132.84
-        // Heading: 336 -> 336
         path6_Sip2 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(133.000, 17.220), new Pose(129.630, 14.250), new Pose(132.840, 10.930)))
-                .setLinearHeadingInterpolation(Math.toRadians(336), Math.toRadians(336))
+                .addPath(new BezierCurve(new Pose(11.000, 17.220), new Pose(14.370, 14.250), new Pose(11.160, 10.930)))
+                .setLinearHeadingInterpolation(Math.toRadians(-156), Math.toRadians(-156))
                 .build();
 
         // Path 7: 还想嘬
-        // Control X: 144 - 10.93 = 133.07
-        // End X: 144 - 10.7 = 133.3
-        // Heading: 336 -> 180 - (-106) = 286
         path7_Sip3 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(132.840, 10.930), new Pose(133.070, 12.590), new Pose(133.300, 10.455)))
-                .setLinearHeadingInterpolation(Math.toRadians(336), Math.toRadians(286))
+                .addPath(new BezierCurve(new Pose(11.160, 10.930), new Pose(12.930, 12.590), new Pose(10.700, 9)))
+                .setLinearHeadingInterpolation(Math.toRadians(-156), Math.toRadians(-97))
                 .build();
 
-        // Path 8: 嘬三口
-        // Control X: 144 - 8.2 = 135.8
-        // End X: 144 - 8.55 = 135.45
-        // Heading: 286 -> 180 - (-90) = 270 (or -90)
-        path8_Sip4 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(133.300, 10.455), new Pose(135.800, 13.400), new Pose(135.450, 8.910)))
-                .setLinearHeadingInterpolation(Math.toRadians(286), Math.toRadians(270))
+        // Path 9: 回分 (Cycle 2 - 对应复杂的嘬一口序列)
+        // 这一段需要把 Path 8 的终点连回发射点
+        path9_Score2 = follower.pathBuilder()
+                .addPath(new BezierCurve(new Pose(10.7, 9), new Pose(32.300, 14.000), new Pose(57.800, 14.250)))
+                .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-69))
                 .build();
 
-        // Path 9: 舍了舍了 (回分)
-        // Control X: 144 - 32.3 = 111.7
-        // End X: 144 - 57.74 = 86.26
-        // Heading: 270 -> 249
-        path9_Score = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(135.450, 8.910), new Pose(111.700, 14.000), new Pose(86.260, 14.250)))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(249))
-                .build();
-
-        // Path 10: 让我看看 (停车)
-        // Control X: 144 - 28.28 = 115.72
-        // End X: 144 - 21.38 = 122.62
-        // Heading: 249 -> 180 - 180 = 0
+        // Path 10: 停车/结束
         path10_Park = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(86.260, 14.250), new Pose(115.720, 13.540), new Pose(122.620, 9.980)))
-                .setLinearHeadingInterpolation(Math.toRadians(249), Math.toRadians(0))
+                .addPath(new BezierCurve(new Pose(57.800, 14.250), new Pose(28.280, 13.540), new Pose(21.380, 9.980)))
+                .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(180))
                 .build();
     }
 
@@ -140,7 +142,7 @@ public class Far0Red extends OpMode {
         SH.setDirection(DcMotorSimple.Direction.REVERSE);
         MOZART.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // 舵机初始化
+        // --- 舵机初始化位置 (Far模式要求) ---
         RP.setPosition(0.1);
         LP.setPosition(1.0);
 
@@ -149,7 +151,7 @@ public class Far0Red extends OpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
-        telemetry.addData("Status", "Far0Red Initialized");
+        telemetry.addData("Status", "Far1CO Initialized");
         telemetry.update();
     }
 
@@ -172,11 +174,12 @@ public class Far0Red extends OpMode {
         telemetry.update();
     }
 
-    // --- 状态机 (逻辑保持不变) ---
+    // --- 状态机 ---
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0: // Path 1: Preload Approach
                 follower.followPath(path1_Preload, true);
+                // 路径运行期间提升转速到 3280
                 SH.setVelocity(calculateTicks(FAR_SHOT_RPM));
                 setPathState(1);
                 break;
@@ -184,7 +187,7 @@ public class Far0Red extends OpMode {
             case 1: // Wait for Path 1 -> Shoot Preload
                 if (!follower.isBusy()) {
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 4.3) {
+                    if (actionTimer.getElapsedTimeSeconds() > 4.3) { // 发射 2秒
                         stopShooting();
                         setPathState(2);
                     }
@@ -193,77 +196,124 @@ public class Far0Red extends OpMode {
                 }
                 break;
 
-            case 2: // Start Intake Sequence (Path 5)
-                isMozartBraked = false; // 重置防走火
-                follower.followPath(path5_Sip1, false);
+            case 2: // Path 2: To Intake Prep
+                follower.followPath(path2_ToIntakePos, true);
                 setPathState(3);
                 break;
 
-            case 3: // Path 5 Running
-                runIntakeLogic();
-                if (!follower.isBusy()) setPathState(4);
-                break;
-
-            case 4: // Path 6: Sip 2
-                follower.followPath(path6_Sip2, false);
-                setPathState(5);
-                break;
-
-            case 5: // Path 6 Running
-                runIntakeLogic();
-                if (!follower.isBusy()) setPathState(6);
-                break;
-
-            case 6: // Path 7: Sip 3
-                follower.followPath(path7_Sip3, false);
-                setPathState(7);
-                break;
-
-            case 7: // Path 7 Running
-                runIntakeLogic();
-                if (!follower.isBusy()) setPathState(8);
-                break;
-
-            case 8: // Path 8: Sip 4
-                follower.followPath(path8_Sip4, true); // 最后一段 Hold
-                setPathState(9);
-                break;
-
-            case 9: // Path 8 Running
-                runIntakeLogic();
+            case 3: // Wait for Path 2
                 if (!follower.isBusy()) {
-                    setPathState(10);
+                    setPathState(4);
                 }
                 break;
 
-            // --- 吸取结束，回分 ---
-
-            case 10: // Path 9: Return to Score
-                sleep(200); // 稍微缓冲一下
-                stopIntake();
-                follower.followPath(path9_Score, true);
-                SH.setVelocity(calculateTicks(FAR_SHOT_RPM));
-                setPathState(11);
+            case 4: // Path 3: Intake 1
+                isMozartBraked = false; // 重置防走火
+                follower.setMaxPower(0.68);
+                follower.followPath(path3_Intake1, false); // 不hold，流畅连接
+                setPathState(5);
                 break;
 
-            case 11: // Wait for Path 9 -> Shoot Cycle 1
+            case 5: // Path 3 Running (吸取逻辑)
+                runIntakeLogic();
+                if (!follower.isBusy()) {
+                    setPathState(6);
+                }
+                break;
+
+            case 6: // Path 4: Return to Score (Cycle 1)
+                stopIntake(); // 停止吸取
+                follower.setMaxPower(1);
+                follower.followPath(path4_Score1, true);
+                // 路径运行期间提升转速
+                SH.setVelocity(calculateTicks(FAR_SHOT_RPM));
+                setPathState(7);
+                break;
+
+            case 7: // Wait for Path 4 -> Shoot Cycle 1
                 if (!follower.isBusy()) {
                     runShooterLogic(FAR_SHOT_RPM);
                     if (actionTimer.getElapsedTimeSeconds() > 4.3) {
                         stopShooting();
-                        setPathState(12);
+                        setPathState(8);
                     }
                 } else {
                     actionTimer.resetTimer();
                 }
                 break;
 
-            case 12: // Path 10: Park
-                follower.followPath(path10_Park, true);
+            // --- 连贯吸取序列开始 ---
+            case 8: // Path 5: Sip 1
+                isMozartBraked = false; // 重置
+                follower.followPath(path5_Sip1, false);
+                setPathState(9);
+                break;
+
+            case 9: // Path 5 Running
+                runIntakeLogic();
+                if (!follower.isBusy()) setPathState(10);
+                break;
+
+            case 10: // Path 6: Sip 2
+                // 这里不重置 isMozartBraked，保持状态锁
+                follower.followPath(path6_Sip2, false);
+                setPathState(11);
+                break;
+
+            case 11: // Path 6 Running
+                runIntakeLogic();
+                if (!follower.isBusy()) setPathState(12);
+                break;
+
+            case 12: // Path 7: Sip 3
+                follower.followPath(path7_Sip3, false);
                 setPathState(13);
                 break;
 
-            case 13: // End
+            case 13: // Path 7 Running
+                runIntakeLogic();
+                if (!follower.isBusy()) setPathState(14);
+                break;
+
+            case 14:
+                setPathState(15);
+                break;
+
+            case 15: // Path 8 Running
+                runIntakeLogic();
+                if (!follower.isBusy()) {
+                    setPathState(16);
+                }
+                break;
+
+            // --- 连贯吸取序列结束，准备回分 ---
+
+            case 16: // Path 9: Return to Basket (Cycle 2)
+                sleep(300);
+                stopIntake();
+                follower.followPath(path9_Score2, true);
+                SH.setVelocity(calculateTicks(FAR_SHOT_RPM));
+                setPathState(17);
+                break;
+
+            case 17: // Wait for Path 9 -> Shoot Cycle 2
+                if (!follower.isBusy()) {
+                    runShooterLogic(FAR_SHOT_RPM);
+                    if (actionTimer.getElapsedTimeSeconds() > 4.3) {
+                        stopShooting();
+                        setPathState(18);
+                    }
+                } else {
+                    actionTimer.resetTimer();
+                }
+                break;
+
+            case 18: // Path 10: Park
+                follower.followPath(path10_Park, true);
+                setPathState(19);
+                break;
+
+            case 19: // End
                 if (!follower.isBusy()) {
                     setPathState(-1);
                 }
@@ -291,7 +341,7 @@ public class Far0Red extends OpMode {
             MOZART.setPower(1.0);
             Hold.setPower(1.0);
             ClassifyServo.setPower(1.0);
-            washer.setPower(1.0);
+            washer.setPower(1);
         } else {
             MOZART.setPower(0);
         }

@@ -121,13 +121,7 @@ public class PinpointPoseProvider implements IPoseProvider {
                 AngleUnit.RADIANS,                                // 明确指定角度单位
                 fieldPose.getHeading(AngleUnit.RADIANS)           // 航向角单位一致
         );
-
-        // 调用底层驱动的setPosition方法，将转换后的坐标写入硬件
         odo.setPosition(poseForDriver);
-
-        // 至关重要：在强制设定新位置后，立即调用update()
-        // 这会使provider内部的 currentPose 变量刷新为刚刚设定的新值，
-        // 从而避免了在同一个循环中读到旧数据的延迟问题。
         update();
     }
 }

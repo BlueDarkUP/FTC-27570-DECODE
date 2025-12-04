@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.Red; // 注意包名可能需要改为 Red
+package org.firstinspires.ftc.teamcode.Auto.Norm.Blue;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -20,8 +20,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "近点 两排 红方", group = "PedroPathing")
-public class Close2Red extends OpMode {
+@Autonomous(name = "近点 两排 蓝方", group = "PedroPathing")
+public class Close2Blue extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer;
@@ -38,7 +38,7 @@ public class Close2Red extends OpMode {
     private Servo LP, RP;
     private RevColorSensorV3 color;
 
-    // 路径定义
+    // 路径定义 (移除了 Cycle 3 相关的路径)
     private PathChain path1_Preload;
     private PathChain path2_ToObelisk;
     private PathChain path3_Intake1;
@@ -47,94 +47,72 @@ public class Close2Red extends OpMode {
     private PathChain path6_ToSpike2;
     private PathChain path7_Intake2;
     private PathChain path8_Score2;
-    private PathChain path12_Park;
+    private PathChain path12_Park; // 直接接停车
 
     // 常量配置
     private static final double TICKS_PER_REV = 28.0;
     private static final double GEAR_RATIO = 1.0;
     PathConstraints slowConstraints = new PathConstraints(30.0, 10.0, 1.0, 1.0);
-
-    // 定义起始姿态 (镜像: X=144-33.6, Heading=180-270)
-    private final Pose startPose = new Pose(110.400, 135.560, Math.toRadians(-90)); // -90等同于270
+    // 定义起始姿态
+    private final Pose startPose = new Pose(33.600, 135.560, Math.toRadians(270));
 
     public void buildPaths() {
         // Path 1: Preload
-        // End X: 144 - 48.5 = 95.5
-        // Heading: 180 - (-48) = 228
         path1_Preload = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(110.400, 135.560), new Pose(95.500, 95.900)))
-                .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(228))
+                .addPath(new BezierLine(new Pose(33.600, 135.560), new Pose(48.500, 95.900)))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-48))
                 .build();
 
         // Path 2: 观测
-        // Control X: 144 - 60 = 84
-        // End X: 144 - 42.4 = 101.6
-        // Heading: 180 - 180 = 0
         path2_ToObelisk = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(95.500, 95.900), new Pose(84.000, 83.170), new Pose(101.600, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(228), Math.toRadians(0))
+                .addPath(new BezierCurve(new Pose(48.500, 95.900), new Pose(60, 83.170), new Pose(42.400, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
                 .build();
 
         // Path 3: 吸取 1
-        // End X: 144 - 18 = 126
-        // Heading: 0
         path3_Intake1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(101.600, 84.000), new Pose(126.000, 83.644)))
+                .addPath(new BezierLine(new Pose(40.400, 84.000), new Pose(18, 83.644)))
                 .setConstraints(slowConstraints)
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 4: 推闸/机动
-        // Start X: 144 - 19.840 = 124.16
-        // Control X: 144 - 30 = 114
-        // End X: 144 - 18 = 126
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(124.160, 83.644), new Pose(114.000, 77.000), new Pose(126.000, 73.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .addPath(new BezierCurve(new Pose(19.840, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 5: 发射 Cycle 1
-        // Start X: 144 - 15.2 = 128.8
-        // End X: 144 - 59.9 = 84.1
-        // Heading: 0 -> 228
         path5_Score1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(128.800, 74.000), new Pose(84.100, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(228))
+                .addPath(new BezierLine(new Pose(15.200, 74.000), new Pose(59.900, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
         // Path 6: 准备吸第二排
-        // End X: 144 - 48 = 96
-        // Heading: 228 -> 0
         path6_ToSpike2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(84.100, 83.900), new Pose(96.000, 62.640)))
-                .setLinearHeadingInterpolation(Math.toRadians(228), Math.toRadians(0))
+                .addPath(new BezierLine(new Pose(59.900, 83.900), new Pose(48.000, 62.640)))
+                .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
                 .build();
 
         // Path 7: 吸取 2
-        // End X: 144 - 8.5 = 135.5
         path7_Intake2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(96.000, 62.640), new Pose(135.500, 59.640)))
+                .addPath(new BezierLine(new Pose(48.000, 62.640), new Pose(8.500, 59.640)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 8: 发射 Cycle 2
-        // Start X: 144 - 20 = 124
-        // End X: 144 - 59.9 = 84.1
-        // Heading: 0 -> 228
         path8_Score2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(124.000, 59.640), new Pose(84.100, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(228))
+                .addPath(new BezierLine(new Pose(20.000, 59.640), new Pose(59.900, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
-        // Path 12: 停车
-        // Start X: 144 - 59.76 = 84.24
-        // End X: 144 - 28 = 116
-        // Heading: 228 -> -90 (270)
+        // Path 12: 停车 (Path 9, 10, 11 已移除)
+        // 注意：起点坐标与 Path 8 终点基本重合，Follower 会自动处理微小误差
         path12_Park = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(84.240, 83.760), new Pose(116.000, 70.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(228), Math.toRadians(-90))
+                .addPath(new BezierLine(new Pose(59.760, 83.760), new Pose(28.000, 70.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(270))
                 .build();
     }
 
@@ -172,7 +150,7 @@ public class Close2Red extends OpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
-        telemetry.addData("Status", "Close2Red Initialized");
+        telemetry.addData("Status", "Close2CO Initialized");
         telemetry.update();
     }
 
@@ -197,7 +175,7 @@ public class Close2Red extends OpMode {
         telemetry.update();
     }
 
-    // --- 状态机逻辑 (逻辑部分与蓝方完全一致，仅调用路径不同) ---
+    // --- 状态机逻辑 ---
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0: // 开始 Path 1 (Preload)
@@ -314,6 +292,7 @@ public class Close2Red extends OpMode {
                     runShooterLogic(2550);
                     if (actionTimer.getElapsedTimeSeconds() > 2.5) {
                         stopShooting();
+                        // --- 关键修改：发射完 Cycle 2 后直接去停车 ---
                         setPathState(16);
                     }
                 } else {
@@ -321,7 +300,10 @@ public class Close2Red extends OpMode {
                 }
                 break;
 
+            // --- 移除了 Cycle 3 相关的 Case (16-21) ---
+
             case 16: // 开始 Path 12 (停车)
+                // 这里对应原来的 Path 12
                 follower.followPath(path12_Park, true);
                 setPathState(17);
                 break;

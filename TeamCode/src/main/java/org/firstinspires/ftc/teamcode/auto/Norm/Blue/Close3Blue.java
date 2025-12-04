@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.Blue;
+package org.firstinspires.ftc.teamcode.Auto.Norm.Blue;
 
 import static java.lang.Thread.sleep;
 

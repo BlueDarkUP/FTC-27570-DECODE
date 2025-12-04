@@ -17,6 +17,10 @@ import java.util.Map;
 import java.util.function.BooleanSupplier;
 
 public class SortingSubsystem {
+
+    // =========================================================
+    // 硬件定义
+    // =========================================================
     private DcMotor intakeMotor;
     private DcMotor mozartMotor;
     private CRServo holdServo;
@@ -24,20 +28,20 @@ public class SortingSubsystem {
     private CRServo washerServo;
     private Servo bbbServo;
 
-    // Sensors
-    private NormalizedColorSensor ballSensor;
-    private NormalizedColorSensor bufferSensor;
+    private NormalizedColorSensor ballSensor;   // "color" (闸门处)
+    private NormalizedColorSensor bufferSensor; // "color2" (缓存处)
 
-    // External Dependencies
-    private ColorClassifier colorClassifier; // Updated dependency
+    private ColorClassifier colorClassifier;
     private Telemetry telemetry;
     private BooleanSupplier opModeActiveCheck;
 
-    // Strategy Table
     private Map<String, List<Runnable>> strategyTable;
 
-    private static final double BBB_INTAKE_POS = 0.92;
-    private static final double BBB_SWAP_POS   = 0.35;
+    // =========================================================
+    // 常量定义
+    // =========================================================
+    private static final double BBB_INTAKE_POS = 0.92; // 关门
+    private static final double BBB_SWAP_POS   = 0.35; // 吐球
 
     private static final double POWER_FULL = 1.0;
     private static final double POWER_REVERSE_FULL = -1.0;
@@ -45,21 +49,17 @@ public class SortingSubsystem {
     private static final double POWER_STOP = 0.0;
 
     // =========================================================
-    // Constructor
+    // 构造函数
     // =========================================================
-    /**
-     * @param classifier Pass in the already initialized ColorClassifier instance from your OpMode
-     */
     public SortingSubsystem(HardwareMap hardwareMap, Telemetry telemetry, ColorClassifier classifier, BooleanSupplier activeCheck) {
         this.telemetry = telemetry;
         this.colorClassifier = classifier;
         this.opModeActiveCheck = activeCheck;
 
-        // 1. Hardware Initialization
+        // 硬件初始化
         intakeMotor = hardwareMap.get(DcMotor.class, "Intake");
         mozartMotor = hardwareMap.get(DcMotor.class, "MOZART");
 
-        // Set Zero Power Behavior
         mozartMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
@@ -71,22 +71,18 @@ public class SortingSubsystem {
         ballSensor = hardwareMap.get(NormalizedColorSensor.class, "color");
         bufferSensor = hardwareMap.get(NormalizedColorSensor.class, "color2");
 
-        // 2. Initialize Strategy Table
         initStrategyTable();
     }
 
     // =========================================================
-    // Basic Control Functions
+    // 基础控制
     // =========================================================
-
     public void setIntakeMode() {
         intakeMotor.setPower(POWER_FULL);
         mozartMotor.setPower(POWER_FULL);
-
         holdServo.setPower(POWER_FULL);
         classifyServo.setPower(POWER_FULL);
         washerServo.setPower(POWER_FULL);
-
         bbbServo.setPosition(BBB_INTAKE_POS);
     }
 
@@ -105,66 +101,52 @@ public class SortingSubsystem {
     }
 
     // =========================================================
-    // Core Action Implementations
+    // 核心动作函数 (Action Implementations)
     // =========================================================
 
-    /**
-     * Action 0: Pass / Final Intake
-     */
+    /** 动作 0: 统一发射 */
     public void actPass() {
         telemetry.addData("Action", "Pass / Final Intake");
         telemetry.update();
-
-        // Optional: Disable vision to save resources during pure mechanical pass
-        colorClassifier.setEnabled(false);
-
         setIntakeMode();
-
         while (opModeActiveCheck.getAsBoolean()) {
             if (isBallAtGate()) {
-                mozartMotor.setPower(POWER_STOP); // Brake
-                telemetry.addData("Info", "Ball at Gate -> MOZART Brake");
-                telemetry.update();
+                mozartMotor.setPower(POWER_STOP);
                 break;
             }
         }
     }
 
-    /**
-     * Action 1: Extract
-     */
+    /** 动作 1: 抽取 */
     public void actExtract(ColorClassifier.DetectionResult targetColor) {
         telemetry.addData("Action", "Extracting " + targetColor);
         telemetry.update();
 
-        // Enable Vision Pipeline
         colorClassifier.setEnabled(true);
-
         setIntakeMode();
 
-        boolean extractionSuccess = false;
-
-        while (opModeActiveCheck.getAsBoolean() && !extractionSuccess) {
-            // Get Result from new Class
-            ColorClassifier.DetectionResult detected = colorClassifier.getResult();
-
-            // 1. Vision finds target
-            if (detected == targetColor) {
-                telemetry.addData("Vision", "Found Target! Reversing ClassifyServo");
-                telemetry.update();
-
-                // Reverse to extract
+        boolean success = false;
+        while (opModeActiveCheck.getAsBoolean() && !success) {
+            if (colorClassifier.getResult() == targetColor) {
+                // 1. 视觉确认，开始动作
                 classifyServo.setPower(POWER_REVERSE_FULL);
 
-                // 2. Wait for color2 to confirm extraction
+                // [新增] 给舵机反转和接触球一点时间
+                sleep(300);
+
+                // 2. 等待球进入缓存
                 while (opModeActiveCheck.getAsBoolean()) {
                     if (isBallInBuffer()) {
-                        telemetry.addData("Sensor", "Color2 Detected -> Restore ClassifyServo");
-                        telemetry.update();
+                        // [新增] 传感器虽然触发了，但球可能还在运动中，给一点时间让球停稳
+                        sleep(300);
 
-                        // Restore and mark complete
+                        // 3. 恢复正转
                         classifyServo.setPower(POWER_FULL);
-                        extractionSuccess = true;
+
+                        // [新增] 给舵机恢复正转一点时间，防止立刻进行下一个动作
+                        sleep(200);
+
+                        success = true;
                         break;
                     }
                 }
@@ -172,123 +154,110 @@ public class SortingSubsystem {
         }
     }
 
-    /**
-     * Action 3: Insert End
-     */
+    /** 动作 3: 插队尾 */
     public void actInsertEnd() {
         telemetry.addData("Action", "Insert End");
         telemetry.update();
 
+        // 吸入剩余球直到闸门
         setIntakeMode();
         while (opModeActiveCheck.getAsBoolean()) {
             if (isBallAtGate()) {
-                mozartMotor.setPower(POWER_STOP); // Brake
+                mozartMotor.setPower(POWER_STOP);
                 break;
             }
         }
 
-        telemetry.addData("Info", "Braked. Waiting 1.5s...");
-        telemetry.update();
-        sleep(1500);
+        // 等待 3 秒
+        sleep(3000);
 
-        telemetry.addData("Info", "Inserting...");
-        telemetry.update();
-
+        // 执行插入
         intakeMotor.setPower(POWER_REVERSE_HALF);
         holdServo.setPower(POWER_REVERSE_FULL);
-        classifyServo.setPower(POWER_FULL);
 
+        // [调整] 保持 1.5 秒，足够球进入
         sleep(1500);
 
+        // 恢复状态
         holdServo.setPower(POWER_FULL);
         intakeMotor.setPower(POWER_STOP);
+
+        // [新增] 缓冲时间
+        sleep(200);
     }
 
-    /**
-     * Action 2: Insert Mid
-     */
+    /** 动作 2: 插队中 */
     public void actInsertMid(ColorClassifier.DetectionResult precedingColor) {
         telemetry.addData("Action", "Insert Mid after " + precedingColor);
         telemetry.update();
 
-        // Enable Vision
         colorClassifier.setEnabled(true);
         setIntakeMode();
 
-        boolean insertionDone = false;
-
-        while (opModeActiveCheck.getAsBoolean() && !insertionDone) {
-            ColorClassifier.DetectionResult detected = colorClassifier.getResult();
-
-            // 1. Found preceding ball
-            if (detected == precedingColor) {
-                telemetry.addData("Trigger", "Saw " + precedingColor + " -> Inserting");
-                telemetry.update();
-
+        boolean done = false;
+        while (opModeActiveCheck.getAsBoolean() && !done) {
+            if (colorClassifier.getResult() == precedingColor) {
+                // 1. 发现前置球，执行动作
                 classifyServo.setPower(POWER_FULL);
-                intakeMotor.setPower(POWER_STOP);
-                holdServo.setPower(POWER_REVERSE_FULL);
+                intakeMotor.setPower(POWER_STOP);       // Brake
+                holdServo.setPower(POWER_REVERSE_FULL); // Reverse
 
-                // 2. Wait for color2 to clear
+                // [新增] 给予机械臂动作时间
+                sleep(200);
+
+                // 2. 等待球离开缓存
                 while (opModeActiveCheck.getAsBoolean()) {
                     if (!isBallInBuffer()) {
-                        telemetry.addData("Sensor", "Color2 Cleared -> Insert Success");
-                        telemetry.update();
-                        insertionDone = true;
+                        // 球已经不在缓存传感器视野内了
+
+                        // [新增] 关键延时！球离开了传感器，但还没完全落入轨道中间。
+                        // 必须给足时间让它掉下去，否则恢复Intake可能会打飞它。
+                        sleep(500);
+
+                        done = true;
                         break;
                     }
                 }
             }
         }
-
-        if (insertionDone) {
+        if (done) {
             holdServo.setPower(POWER_FULL);
+            // [新增] 恢复 Hold 后给一点时间归位
+            sleep(200);
             actPass();
         }
     }
 
-    /**
-     * Action 4: Swap
-     */
+    /** 动作 4: 置换 (Swap) */
     public void actSwap(ColorClassifier.DetectionResult expectInput) {
         telemetry.addData("Action", "Swapping... Expecting " + expectInput);
         telemetry.update();
 
-        // Enable Vision
         colorClassifier.setEnabled(true);
         setIntakeMode();
 
-        boolean swapDone = false;
-
-        while (opModeActiveCheck.getAsBoolean() && !swapDone) {
-            ColorClassifier.DetectionResult detected = colorClassifier.getResult();
-
-            // 1. Found expected input
-            if (detected == expectInput) {
-                telemetry.addData("Trigger", "Saw " + expectInput + " -> Executing Swap");
-                telemetry.update();
-
-                // A. Open gate
+        boolean done = false;
+        while (opModeActiveCheck.getAsBoolean() && !done) {
+            if (colorClassifier.getResult() == expectInput) {
+                // 1. 打开吐球口，开始反转
                 bbbServo.setPosition(BBB_SWAP_POS);
-
-                // B. Push old, Suck new
                 holdServo.setPower(POWER_FULL);
                 classifyServo.setPower(POWER_REVERSE_FULL);
 
-                // C. Delay
-                sleep(478);
+                // [新增] 关键延时！让机械结构完全打开，让球有时间开始运动
+                // 防止还没张开嘴，球就撞上去了
+                sleep(500);
 
-                // D. Wait for new ball in buffer
+                // 2. 等待新球进入
                 while (opModeActiveCheck.getAsBoolean()) {
                     if (isBallInBuffer()) {
-                        telemetry.addData("Sensor", "Color2 Detected New Ball -> Swap Success");
-                        telemetry.update();
+                        bbbServo.setPosition(BBB_INTAKE_POS); // 关门
 
-                        // --- Cleanup ---
-                        bbbServo.setPosition(BBB_INTAKE_POS);
+                        sleep(200);
+
                         classifyServo.setPower(POWER_FULL);
 
-                        swapDone = true;
+                        done = true;
                         break;
                     }
                 }
@@ -296,68 +265,35 @@ public class SortingSubsystem {
         }
     }
 
-    // =========================================================
-    // Strategy Table
-    // =========================================================
     private void initStrategyTable() {
         strategyTable = new HashMap<>();
 
-        // Use the Enum from ColorClassifier
         ColorClassifier.DetectionResult G = ColorClassifier.DetectionResult.GREEN;
         ColorClassifier.DetectionResult P = ColorClassifier.DetectionResult.PURPLE;
 
-        // --- GGG Group ---
-        strategyTable.put("GGG_GPP", Arrays.asList(this::actPass));
-        strategyTable.put("GGG_PGP", Arrays.asList(this::actPass));
-        strategyTable.put("GGG_PPG", Arrays.asList(this::actPass));
-
-        // --- GGP Group ---
-        strategyTable.put("GGP_GPP", Arrays.asList(this::actPass));
-        strategyTable.put("GGP_PGP", Arrays.asList(this::actPass));
-        strategyTable.put("GGP_PPG", Arrays.asList(
-                () -> actExtract(G),
-                this::actInsertEnd
-        ));
-
-        // --- GPG Group ---
-        strategyTable.put("GPG_GPP", Arrays.asList(this::actPass));
-        strategyTable.put("GPG_PGP", Arrays.asList(
-                () -> actExtract(G),
-                () -> actInsertMid(P)
-        ));
-        strategyTable.put("GPG_PPG", Arrays.asList(this::actPass));
-
-        // --- GPP Group ---
         strategyTable.put("GPP_GPP", Arrays.asList(this::actPass));
+
         strategyTable.put("GPP_PGP", Arrays.asList(
                 () -> actExtract(G),
                 () -> actInsertMid(P)
         ));
+
         strategyTable.put("GPP_PPG", Arrays.asList(
                 () -> actExtract(G),
                 this::actInsertEnd
         ));
 
-        // --- PGG Group ---
-        strategyTable.put("PGG_GPP", Arrays.asList(
-                () -> actExtract(P),
-                () -> actInsertMid(G)
-        ));
-        strategyTable.put("PGG_PGP", Arrays.asList(this::actPass));
-        strategyTable.put("PGG_PPG", Arrays.asList(this::actPass));
-
-        // --- PGP Group ---
         strategyTable.put("PGP_GPP", Arrays.asList(
                 () -> actExtract(P),
                 () -> actInsertMid(G)
         ));
+
         strategyTable.put("PGP_PGP", Arrays.asList(this::actPass));
+
         strategyTable.put("PGP_PPG", Arrays.asList(
                 () -> actExtract(G),
                 this::actInsertEnd
         ));
-
-        // --- PPG Group ---
         strategyTable.put("PPG_GPP", Arrays.asList(
                 () -> actExtract(P),
                 () -> actSwap(P),
@@ -368,16 +304,8 @@ public class SortingSubsystem {
                 this::actInsertEnd
         ));
         strategyTable.put("PPG_PPG", Arrays.asList(this::actPass));
-
-        // --- PPP Group ---
-        strategyTable.put("PPP_GPP", Arrays.asList(this::actPass));
-        strategyTable.put("PPP_PGP", Arrays.asList(this::actPass));
-        strategyTable.put("PPP_PPG", Arrays.asList(this::actPass));
     }
 
-    /**
-     * Execute Strategy
-     */
     public void executeStrategy(String input, String target) {
         String key = input + "_" + target;
         telemetry.addData("Strategy", "Starting " + key);
@@ -388,15 +316,12 @@ public class SortingSubsystem {
             for (Runnable action : actions) {
                 if (!opModeActiveCheck.getAsBoolean()) return;
                 action.run();
-                sleep(200);
+                sleep(500);
             }
         } else {
-            telemetry.addData("Warning", "No logic for " + key + ", defaulting to Pass");
+            telemetry.addData("Error", "Invalid Pattern! Defaulting to Pass.");
             telemetry.update();
             actPass();
         }
-
-        // Optional: Disable camera after strategy is done
-        colorClassifier.setEnabled(false);
     }
 }

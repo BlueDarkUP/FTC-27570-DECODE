@@ -13,6 +13,7 @@ public class UsageExampleOpMode extends LinearOpMode {
     public void runOpMode() {
         // 2. 初始化视觉 (传入 hardwareMap, 摄像头名字, 和 telemetry)
         vision.init(hardwareMap, "ClassifyCam", telemetry);
+        vision.setEnabled(true);
 
         telemetry.addData("Status", "Vision Initialized");
         telemetry.update();

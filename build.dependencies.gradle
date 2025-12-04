@@ -1,6 +1,7 @@
 repositories {
     mavenCentral()
     maven { url = 'https://maven.brott.dev/' }
+    maven { url = "https://mymaven.bylazar.com/releases" }
     google() // Needed for androidx
 }
 
@@ -16,5 +17,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'org.openftc:easyopencv:1.7.0'
     implementation 'com.acmerobotics.dashboard:dashboard:0.5.1'
+    implementation 'com.pedropathing:ftc:2.0.4'
+    implementation 'com.pedropathing:telemetry:1.0.0'
+    implementation 'com.bylazar:fullpanels:1.0.6'
 }
 
