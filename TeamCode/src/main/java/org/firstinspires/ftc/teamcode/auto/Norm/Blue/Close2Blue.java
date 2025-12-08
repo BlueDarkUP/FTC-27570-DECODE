@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Auto.Norm.Blue;
+package org.firstinspires.ftc.teamcode.auto.Norm.Blue;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -71,7 +71,7 @@ public class Close2Blue extends OpMode {
 
         // Path 3: 吸取 1
         path3_Intake1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(40.400, 84.000), new Pose(18, 83.644)))
+                .addPath(new BezierLine(new Pose(42.400, 84.000), new Pose(20, 83.644)))
                 .setConstraints(slowConstraints)
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
@@ -79,32 +79,32 @@ public class Close2Blue extends OpMode {
         // Path 4: 推闸/机动
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(19.840, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
+                .addPath(new BezierCurve(new Pose(20, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 5: 发射 Cycle 1
         path5_Score1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(15.200, 74.000), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(18, 73.000), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
         // Path 6: 准备吸第二排
         path6_ToSpike2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(59.900, 83.900), new Pose(48.000, 62.640)))
+                .addPath(new BezierLine(new Pose(59.900, 84.00), new Pose(48.000, 63.5)))
                 .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
                 .build();
 
         // Path 7: 吸取 2
         path7_Intake2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 62.640), new Pose(8.500, 59.640)))
+                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(9.500, 63.5)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 8: 发射 Cycle 2
         path8_Score2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(20.000, 59.640), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(9.5000, 63.5), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
@@ -330,7 +330,7 @@ public class Close2Blue extends OpMode {
 
         double currentRPM = getShooterRPM();
 
-        if (Math.abs(currentRPM - targetRPM) <= 50) {
+        if (Math.abs(currentRPM - targetRPM) <= 1000) {
             MOZART.setPower(1.0);
             Hold.setPower(1.0);
             ClassifyServo.setPower(1.0);

@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Auto.Norm.Blue;
+package org.firstinspires.ftc.teamcode.auto.Norm.Blue;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -261,7 +261,7 @@ public class Far0Blue extends OpMode {
         SH.setVelocity(calculateTicks(targetRPM));
         double currentRPM = getShooterRPM();
 
-        if (Math.abs(currentRPM - targetRPM) <= 50) {
+        if (Math.abs(currentRPM - targetRPM) <= 150) {
             MOZART.setPower(1.0);
             Hold.setPower(1.0);
             ClassifyServo.setPower(1.0);
