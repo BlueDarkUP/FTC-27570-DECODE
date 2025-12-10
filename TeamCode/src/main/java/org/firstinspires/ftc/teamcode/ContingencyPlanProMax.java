@@ -11,8 +11,6 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
-import com.qualcomm.hardware.rev.RevColorSensorV3;
-import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -24,8 +22,10 @@ import java.util.List;
 public class ContingencyPlanProMax extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
     private IMU imu;
-    private RevColorSensorV3 ballSensor = null;
+
     private DistanceSensor distanceSensor = null;
+    private DistanceSensor distanceSensor2 = null;
+
     private DcMotor leftFrontDrive = null;
     private DcMotor leftBackDrive = null;
     private DcMotor rightFrontDrive = null;
@@ -44,6 +44,9 @@ public class ContingencyPlanProMax extends LinearOpMode {
     private boolean lastYState = false;
     private boolean state = false;
     private boolean isMozartBraked = false;
+
+    private boolean waitingForSensorReset = false;
+
     private boolean lastLeftBumperState = false;
     private boolean isManualStopped = false;
 
@@ -65,8 +68,6 @@ public class ContingencyPlanProMax extends LinearOpMode {
     private final double TARGET_ANGLE_RIGHT = -135.0;
     private static final double MIN_SERVO_POS = 0.0;
     private static final double MAX_SERVO_POS = 1.0;
-    private static final double MIN_ANGLE_DEG = 40.0;
-    private static final double MAX_ANGLE_DEG = 67.44;
 
     private static final double JOYSTICK_DEADZONE = 0.05;
 
@@ -123,9 +124,8 @@ public class ContingencyPlanProMax extends LinearOpMode {
         servoLP = hardwareMap.get(Servo.class, "LP");
         AJI = hardwareMap.get(Servo.class, "AJI");
         MIDE = hardwareMap.get(Servo.class, "MIDE");
-        ballSensor = hardwareMap.get(RevColorSensorV3.class, "color");
-
         distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
+        distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2"); // 新增
 
         servoRP.setPosition(0.91);
         servoLP.setPosition(0.078);
@@ -241,55 +241,56 @@ public class ContingencyPlanProMax extends LinearOpMode {
         double targetTicksPerSecond = TARGET_RPM * MOTOR_TICK_COUNT / 60;
         shooter.setVelocity(targetTicksPerSecond);
 
-        // --- 1. 优先读取传感器数据 ---
-        NormalizedRGBA colors = ballSensor.getNormalizedColors();
-        boolean isColorDetected = (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1);
-        double currentDistance = distanceSensor.getDistance(DistanceUnit.MM);
-        boolean isDistanceDetected = (currentDistance < 50);
+        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
+        double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
-        boolean isObjectDetected = isColorDetected || isDistanceDetected;
+        boolean isDetected1 = (dist1 < 50);
+        boolean isDetected2 = (dist2 < 50);
 
-        // --- 2. 传感器刹车逻辑 ---
+        boolean isObjectDetected = isDetected1 || isDetected2;
+
         if (!state && !isManualStopped) {
-            // 如果检测到物体，立即置为刹车状态
-            if (isObjectDetected) {
-                isMozartBraked = true;
+            if (waitingForSensorReset) {
+                if (!isObjectDetected) {
+                    waitingForSensorReset = false;
+                }
+            } else {
+                if (isObjectDetected) {
+                    isMozartBraked = true;
+                }
             }
         }
 
-        // --- 3. 处理按键 A (Cross) ---
         if (gamepad1.a) {
             state = false;
             isManualStopped = false;
 
-            // 【关键修改】：只有当传感器没检测到物体时，才允许解除刹车
-            // 这样如果你按住A，但传感器前面有球，MOZART 依然会保持刹车状态
-            if (!isObjectDetected) {
-                isMozartBraked = false;
+            isMozartBraked = false;
+
+            if (isObjectDetected) {
+                waitingForSensorReset = true;
+            } else {
+                waitingForSensorReset = false;
             }
 
             intake.setPower(1);
-            // blender.setPower(1); // 删除这行，统一在下面根据刹车状态控制
             washer.setPower(1);
             classifyServo.setPower(1);
             holdServo.setPower(1);
             TARGET_RPM = 1500;
         }
 
-        // --- 4. 统一控制 blender (MOZART) 电机 ---
         if (!state && !isManualStopped) {
-            // 根据刹车标志位控制电机
             blender.setPower(isMozartBraked ? 0.0 : 1.0);
         }
 
-        // --- 5. 其他按键逻辑 ---
         if (gamepad1.b) {
-            // B键通常作为反转或强制排异，这里保留强制开启
             intake.setPower(1);
             blender.setPower(1);
             washer.setPower(1);
             classifyServo.setPower(1);
             holdServo.setPower(-1);
+            waitingForSensorReset = false;
         }
 
         if (gamepad1.x) {
@@ -362,16 +363,22 @@ public class ContingencyPlanProMax extends LinearOpMode {
         double currentVelocityTicks = shooter.getVelocity();
         double currentRPM = (currentVelocityTicks / MOTOR_TICK_COUNT) * 60;
         boolean velocityCheck = Math.abs(currentRPM - TARGET_RPM) <= ErrorRange;
-        double currentDistance = distanceSensor.getDistance(DistanceUnit.MM);
+
+        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
+        double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
         telemetry.addData("Status", "Run Time: " + runtime.toString());
         telemetry.addData("Heading", "%.1f", getHeading());
         telemetry.addData("Mode", gamepad1.right_bumper ? "Auto Turn" : "Manual");
         telemetry.addData("Shooter", "T:%.0f | C:%.2f", TARGET_RPM, currentRPM);
-        telemetry.addData("Dist(mm)", "%.1f", currentDistance);
+
+        telemetry.addData("D1(juju)", "%.1f mm", dist1);
+        telemetry.addData("D2(juju2)", "%.1f mm", dist2);
+
+        telemetry.addData("Clearing Old Ball", waitingForSensorReset ? "YES" : "NO");
         telemetry.addData("Ready", velocityCheck ? "Yes" : "No");
         telemetry.addData("Stop", isManualStopped ? "Yes" : "No");
-        telemetry.addData("Blender", blender.getPower() == 0 ? "Stop" : "Run");
+        telemetry.addData("Blender", blender.getPower() == 0 ? "Braked" : "Running");
         telemetry.update();
     }
 
