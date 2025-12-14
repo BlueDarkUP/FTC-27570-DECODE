@@ -7,17 +7,16 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.paths.PathConstraints;
 import com.pedropathing.util.Timer;
-import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
-
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name = "近点 15 蓝方", group = "PedroPathing")
@@ -37,7 +36,9 @@ public class CloseBlueCPX extends OpMode {
     private DcMotorEx SH, MOZART, Intake;
     private CRServo washer, Hold, ClassifyServo;
     private Servo LP, RP;
-    private RevColorSensorV3 color;
+
+    private DistanceSensor distanceSensor;
+    private DistanceSensor distanceSensor2;
 
     // 路径定义
     private PathChain path1_Preload, path2_ToObelisk, path3_Intake1, path4_Score1, path5_ToSpike2, path6_Intake2, path7_Maneuver, path8_Score2, path9_ToSpike3, path10_Intake3, path11_Score3;
@@ -153,7 +154,9 @@ public class CloseBlueCPX extends OpMode {
         washer = hardwareMap.get(CRServo.class, "washer");
         Hold = hardwareMap.get(CRServo.class, "Hold");
         ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
-        color = hardwareMap.get(RevColorSensorV3.class, "color");
+
+        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
+        distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         SH.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         PIDFCoefficients pidfOrig = new PIDFCoefficients(250, 0.1, 30, 13);
@@ -185,6 +188,13 @@ public class CloseBlueCPX extends OpMode {
         telemetry.addData("Path State", pathState);
         telemetry.addData("SH RPM", getShooterRPM());
         telemetry.addData("Reached Speed", hasReachedTargetSpeed);
+
+        // 调试用：显示距离
+        if (distanceSensor != null && distanceSensor2 != null) {
+            telemetry.addData("Dist1", "%.1f", distanceSensor.getDistance(DistanceUnit.MM));
+            telemetry.addData("Dist2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
+        }
+
         telemetry.update();
     }
 
@@ -395,13 +405,22 @@ public class CloseBlueCPX extends OpMode {
     private double calculateTicks(double rpm) { return (rpm * TICKS_PER_REV * GEAR_RATIO) / 60.0; }
     private void stopShooting() { SH.setPower(0); MOZART.setPower(0); Hold.setPower(0); ClassifyServo.setPower(0); washer.setPower(0); }
     private double getShooterRPM() { return (SH.getVelocity() * 60.0) / (TICKS_PER_REV * GEAR_RATIO); }
+
+    // --- 修改：使用距离传感器逻辑 ---
     private void runIntakeLogic() {
         Intake.setPower(1.0); washer.setPower(1.0); Hold.setPower(1.0); ClassifyServo.setPower(1.0);
-        NormalizedRGBA colors = color.getNormalizedColors();
+
+        // 获取距离
+        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
+        double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
+
         if (!isMozartBraked) {
-            if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) isMozartBraked = true;
+            if (dist1 < 50 || dist2 < 50) {
+                isMozartBraked = true;
+            }
         }
         MOZART.setPower(isMozartBraked ? 0.0 : 1.0);
     }
+
     private void stopIntake() { Intake.setPower(0); washer.setPower(0); Hold.setPower(0); ClassifyServo.setPower(0); MOZART.setPower(0); }
 }

@@ -6,17 +6,17 @@ import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
-import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+import com.qualcomm.robotcore.hardware.DistanceSensor; // 新增
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name = "远点 不吸 蓝方", group = "PedroPathing")
@@ -33,7 +33,9 @@ public class Far0Blue extends OpMode {
     private DcMotorEx SH, MOZART, Intake;
     private CRServo washer, Hold, ClassifyServo;
     private Servo LP, RP;
-    private RevColorSensorV3 color;
+
+    private DistanceSensor distanceSensor;
+    private DistanceSensor distanceSensor2;
 
     // 路径对象
     private PathChain path1_Preload;
@@ -77,8 +79,6 @@ public class Far0Blue extends OpMode {
                 .setLinearHeadingInterpolation(Math.toRadians(-156), Math.toRadians(-97))
                 .build();
 
-        // Path 9: 回分 (Cycle 2 - 对应复杂的嘬一口序列)
-        // 这一段需要把 Path 8 的终点连回发射点
         path9_Score = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(10.7, 9), new Pose(32.300, 14.000), new Pose(57.800, 14.250)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-69))
@@ -106,7 +106,9 @@ public class Far0Blue extends OpMode {
         washer = hardwareMap.get(CRServo.class, "washer");
         Hold = hardwareMap.get(CRServo.class, "Hold");
         ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
-        color = hardwareMap.get(RevColorSensorV3.class, "color");
+
+        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
+        distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // 电机配置
         SH.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -143,6 +145,13 @@ public class Far0Blue extends OpMode {
         telemetry.addData("Y", follower.getPose().getY());
         telemetry.addData("SH RPM", getShooterRPM());
         telemetry.addData("Mozart Braked", isMozartBraked);
+
+        // 调试信息
+        if (distanceSensor != null && distanceSensor2 != null) {
+            telemetry.addData("D1", "%.1f", distanceSensor.getDistance(DistanceUnit.MM));
+            telemetry.addData("D2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
+        }
+
         telemetry.update();
     }
 
@@ -289,9 +298,13 @@ public class Far0Blue extends OpMode {
         Hold.setPower(1.0);
         ClassifyServo.setPower(1.0);
 
-        NormalizedRGBA colors = color.getNormalizedColors();
+        // 获取距离
+        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
+        double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
+
         if (!isMozartBraked) {
-            if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
+            // 任意一个传感器距离小于 50mm 则判定为有球
+            if (dist1 < 50 || dist2 < 50) {
                 isMozartBraked = true;
             }
         }

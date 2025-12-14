@@ -1,7 +1,5 @@
 package org.firstinspires.ftc.teamcode.auto.Norm.Blue;
 
-import static java.lang.Thread.sleep;
-
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
@@ -9,17 +7,17 @@ import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.paths.PathConstraints;
 import com.pedropathing.util.Timer;
-import com.qualcomm.hardware.rev.RevColorSensorV3;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+import com.qualcomm.robotcore.hardware.DistanceSensor; // 新增
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name = "近点 三排 蓝方", group = "PedroPathing")
@@ -34,11 +32,14 @@ public class Close3Blue extends OpMode {
     // --- 新增：防走火状态锁 ---
     private boolean isMozartBraked = false;
 
-    // 硬件定义 (修改 ColorSensor 为 RevColorSensorV3)
+    // 硬件定义
     private DcMotorEx SH, MOZART, Intake;
     private CRServo washer, Hold, ClassifyServo;
     private Servo LP, RP;
-    private RevColorSensorV3 color;
+
+    private DistanceSensor distanceSensor;
+    private DistanceSensor distanceSensor2;
+
 
     // 路径定义
     private PathChain path1_Preload;
@@ -156,8 +157,8 @@ public class Close3Blue extends OpMode {
         Hold = hardwareMap.get(CRServo.class, "Hold");
         ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
 
-        // 修改为 RevColorSensorV3
-        color = hardwareMap.get(RevColorSensorV3.class, "color");
+        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
+        distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // --- 电机配置 ---
         SH.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -195,7 +196,14 @@ public class Close3Blue extends OpMode {
         telemetry.addData("Y", follower.getPose().getY());
         telemetry.addData("Heading", Math.toDegrees(follower.getPose().getHeading()));
         telemetry.addData("SH RPM", getShooterRPM());
-        telemetry.addData("Mozart Braked", isMozartBraked); // 调试信息
+        telemetry.addData("Mozart Braked", isMozartBraked);
+
+        // 调试用
+        if (distanceSensor != null && distanceSensor2 != null) {
+            telemetry.addData("D1", "%.1f", distanceSensor.getDistance(DistanceUnit.MM));
+            telemetry.addData("D2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
+        }
+
         telemetry.update();
     }
 
@@ -232,7 +240,6 @@ public class Close3Blue extends OpMode {
                 break;
 
             case 4: // 开始 Path 3 (吸取 1)
-                // --- 关键修改：进入吸取状态前重置防走火标志 ---
                 isMozartBraked = false;
                 follower.setMaxPower(0.9);
                 follower.followPath(path3_Intake1, false);
@@ -291,7 +298,6 @@ public class Close3Blue extends OpMode {
                 break;
 
             case 12: // 开始 Path 7 (吸取 2)
-                // --- 关键修改：重置标志 ---
                 isMozartBraked = false;
                 follower.setMaxPower(0.7);
                 follower.followPath(path7_Intake2, false);
@@ -337,7 +343,6 @@ public class Close3Blue extends OpMode {
                 break;
 
             case 18: // 开始 Path 10 (吸取 3)
-                // --- 关键修改：重置标志 ---
                 isMozartBraked = false;
                 follower.setMaxPower(0.7);
                 follower.followPath(path10_Intake3, false);
@@ -420,9 +425,6 @@ public class Close3Blue extends OpMode {
         return (SH.getVelocity() * 60.0) / (TICKS_PER_REV * GEAR_RATIO);
     }
 
-    /**
-     * 吸取逻辑：使用 TeleOp 中正确的算法
-     */
     private void runIntakeLogic() {
         // 1. 基础结构开启
         Intake.setPower(1.0);
@@ -430,11 +432,13 @@ public class Close3Blue extends OpMode {
         Hold.setPower(1.0);
         ClassifyServo.setPower(1.0);
 
-        // 2. 防走火检测 (使用 NormalizedRGBA 和 TeleOp 中的逻辑)
-        NormalizedRGBA colors = color.getNormalizedColors();
+        // 2. 防走火检测
+        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
+        double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
+
         if (!isMozartBraked) {
-            // TeleOp 逻辑：如果任一颜色通道显著（乘以255后大于1），认为检测到球
-            if (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1) {
+            // 任意一个传感器距离小于 50mm 则判定为有球
+            if (dist1 < 50 || dist2 < 50) {
                 isMozartBraked = true; // 锁定刹车状态
             }
         }

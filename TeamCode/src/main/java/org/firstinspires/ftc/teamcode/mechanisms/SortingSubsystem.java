@@ -2,12 +2,14 @@ package org.firstinspires.ftc.teamcode.mechanisms;
 
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DistanceSensor; // 新增
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.vision.Class.ColorClassifier;
 
 import java.util.Arrays;
@@ -28,8 +30,10 @@ public class SortingSubsystem {
     private CRServo washerServo;
     private Servo bbbServo;
 
-    private NormalizedColorSensor ballSensor;   // "color" (闸门处)
-    private NormalizedColorSensor bufferSensor; // "color2" (缓存处)
+    private DistanceSensor distanceSensor;  // "juju"
+    private DistanceSensor distanceSensor2; // "juju2"
+
+    private NormalizedColorSensor bufferSensor;
 
     private ColorClassifier colorClassifier;
     private Telemetry telemetry;
@@ -47,6 +51,9 @@ public class SortingSubsystem {
     private static final double POWER_REVERSE_FULL = -1.0;
     private static final double POWER_REVERSE_HALF = -0.5;
     private static final double POWER_STOP = 0.0;
+
+    // 距离阈值
+    private static final double DISTANCE_THRESHOLD_MM = 50.0;
 
     // =========================================================
     // 构造函数
@@ -68,7 +75,11 @@ public class SortingSubsystem {
         washerServo = hardwareMap.get(CRServo.class, "washer");
         bbbServo = hardwareMap.get(Servo.class, "bbb");
 
-        ballSensor = hardwareMap.get(NormalizedColorSensor.class, "color");
+        // 修改：初始化距离传感器，移除原 ballSensor
+        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
+        distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
+
+        // 保留：bufferSensor 初始化
         bufferSensor = hardwareMap.get(NormalizedColorSensor.class, "color2");
 
         initStrategyTable();
@@ -86,11 +97,16 @@ public class SortingSubsystem {
         bbbServo.setPosition(BBB_INTAKE_POS);
     }
 
+    // 修改：使用距离传感器判断闸门处是否有球
     private boolean isBallAtGate() {
-        NormalizedRGBA colors = ballSensor.getNormalizedColors();
-        return (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1);
+        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
+        double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
+
+        // 任意一个传感器距离小于阈值，视为有球
+        return (dist1 < DISTANCE_THRESHOLD_MM || dist2 < DISTANCE_THRESHOLD_MM);
     }
 
+    // 保留：缓存处使用颜色传感器判断
     private boolean isBallInBuffer() {
         NormalizedRGBA colors = bufferSensor.getNormalizedColors();
         return (colors.red * 255 > 1 || colors.green * 255 > 1 || colors.blue * 255 > 1);
