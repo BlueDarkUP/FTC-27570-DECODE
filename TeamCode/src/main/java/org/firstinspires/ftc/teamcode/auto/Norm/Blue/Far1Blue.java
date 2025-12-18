@@ -35,7 +35,6 @@ public class Far1Blue extends OpMode {
     private CRServo washer, Hold, ClassifyServo;
     private Servo LP, RP;
 
-    private DistanceSensor distanceSensor;
     private DistanceSensor distanceSensor2;
 
     // 路径对象
@@ -53,7 +52,7 @@ public class Far1Blue extends OpMode {
     private static final double TICKS_PER_REV = 28.0;
     private static final double GEAR_RATIO = 1.0;
     // 远端投射需要的 RPM
-    private static final double FAR_SHOT_RPM = 3150.0;
+    private static final double FAR_SHOT_RPM = 3380.0;
 
     // 慢速约束 (用于吸取阶段)
     PathConstraints slowConstraints = new PathConstraints(15.0, 10.0, 1.0, 1.0);
@@ -102,8 +101,8 @@ public class Far1Blue extends OpMode {
 
         // Path 7: 还想嘬
         path7_Sip3 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(11.160, 10.930), new Pose(12.930, 12.590), new Pose(10.700, 9)))
-                .setLinearHeadingInterpolation(Math.toRadians(-156), Math.toRadians(-97))
+                .addPath(new BezierCurve(new Pose(11.160, 10.930), new Pose(16, 16), new Pose(11, 9)))
+                .setLinearHeadingInterpolation(Math.toRadians(-156), Math.toRadians(-90))
                 .build();
 
         // Path 9: 回分 (Cycle 2 - 对应复杂的嘬一口序列)
@@ -136,7 +135,6 @@ public class Far1Blue extends OpMode {
         Hold = hardwareMap.get(CRServo.class, "Hold");
         ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
 
-        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
         distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // 电机配置
@@ -176,8 +174,7 @@ public class Far1Blue extends OpMode {
         telemetry.addData("Mozart Braked", isMozartBraked);
 
         // 调试用
-        if (distanceSensor != null && distanceSensor2 != null) {
-            telemetry.addData("D1", "%.1f", distanceSensor.getDistance(DistanceUnit.MM));
+        if (distanceSensor2 != null) {
             telemetry.addData("D2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
         }
 
@@ -196,8 +193,9 @@ public class Far1Blue extends OpMode {
 
             case 1: // Wait for Path 1 -> Shoot Preload
                 if (!follower.isBusy()) {
+                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 3) { // 发射 2秒
+                    if (actionTimer.getElapsedTimeSeconds() > 3.3) { // 发射 2秒
                         stopShooting();
                         setPathState(2);
                     }
@@ -242,8 +240,9 @@ public class Far1Blue extends OpMode {
 
             case 7: // Wait for Path 4 -> Shoot Cycle 1
                 if (!follower.isBusy()) {
+                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 3.3) {
                         stopShooting();
                         setPathState(8);
                     }
@@ -299,7 +298,7 @@ public class Far1Blue extends OpMode {
             // --- 连贯吸取序列结束，准备回分 ---
 
             case 16: // Path 9: Return to Basket (Cycle 2)
-                sleep(300);
+                sleep(500);
                 follower.followPath(path9_Score2, true);
                 SH.setVelocity(calculateTicks(FAR_SHOT_RPM));
                 setPathState(17);
@@ -308,8 +307,9 @@ public class Far1Blue extends OpMode {
             case 17: // Wait for Path 9 -> Shoot Cycle 2
                 if (!follower.isBusy()) {
                     stopIntake();
+                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 3.3) {
                         stopShooting();
                         setPathState(18);
                     }
@@ -349,7 +349,7 @@ public class Far1Blue extends OpMode {
 
         if (Math.abs(currentRPM - targetRPM) <= 150) {
             MOZART.setPower(1.0);
-            Hold.setPower(1.0);
+            Hold.setPower(-1.0);
             ClassifyServo.setPower(1.0);
             washer.setPower(1);
         } else {
@@ -375,13 +375,11 @@ public class Far1Blue extends OpMode {
         Hold.setPower(1.0);
         ClassifyServo.setPower(1.0);
 
-        // 获取距离
-        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
         if (!isMozartBraked) {
             // 任意一个传感器距离小于 50mm 则判定为有球
-            if (dist1 < 50 || dist2 < 50) {
+            if (dist2 < 50) {
                 isMozartBraked = true;
             }
         }

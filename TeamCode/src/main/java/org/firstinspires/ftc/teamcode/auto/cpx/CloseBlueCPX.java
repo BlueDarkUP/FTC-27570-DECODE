@@ -37,7 +37,6 @@ public class CloseBlueCPX extends OpMode {
     private CRServo washer, Hold, ClassifyServo;
     private Servo LP, RP;
 
-    private DistanceSensor distanceSensor;
     private DistanceSensor distanceSensor2;
 
     // 路径定义
@@ -70,14 +69,14 @@ public class CloseBlueCPX extends OpMode {
 
         // Path 3: 吸取 1
         path3_Intake1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(42.400, 84.000), new Pose(19, 83.644)))
+                .addPath(new BezierLine(new Pose(43.400, 84.000), new Pose(22, 83.644)))
                 .setConstraints(slowConstraints)
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 4: 吸完1 -> 直接去发射1
         path4_Score1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(18.000, 83.644), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(22.000, 83.644), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
@@ -89,7 +88,7 @@ public class CloseBlueCPX extends OpMode {
 
         // Path 6: 吸取 2
         path6_Intake2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(9.500, 63.5)))
+                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(12.500, 63.5)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
@@ -97,7 +96,7 @@ public class CloseBlueCPX extends OpMode {
         // Path 7: 吸完2 -> 去拉闸 (Maneuver) **微调后**
         path7_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(9.500, 63.5), new Pose(32.000, 69.000), new Pose(18.000, 73.000)))
+                .addPath(new BezierCurve(new Pose(12.500, 63.5), new Pose(32.000, 69.000), new Pose(18.000, 73.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(270))
                 .build();
 
@@ -115,26 +114,26 @@ public class CloseBlueCPX extends OpMode {
 
         // Path 10: 吸取 3
         path10_Intake3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 38), new Pose(9.500, 38)))
+                .addPath(new BezierLine(new Pose(48.000, 38), new Pose(12.500, 38)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 11: 发射 Cycle 3
         path11_Score3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(9.5, 38), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(12.5, 38), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
         // Path 12: 去往潜水艇入口
         path12_ToSubmersible = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(59.900, 84.000), new Pose(12.150, 40.000)))
+                .addPath(new BezierLine(new Pose(59.900, 84.000), new Pose(11.150, 40.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(-130))
                 .build();
 
         // Path 13: 潜水艇盲吸 (构建一条很长的线，靠时间停止)
         path13_SubmersibleIntake = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(12.150, 55.000), new Pose(12.150, 20.000)))
+                .addPath(new BezierLine(new Pose(12.150, 55.000), new Pose(11.150, 15.000)))
                 .setConstraints(subIntakeConstraints)
                 .setLinearHeadingInterpolation(Math.toRadians(-130), Math.toRadians(-130))
                 .build();
@@ -154,8 +153,6 @@ public class CloseBlueCPX extends OpMode {
         washer = hardwareMap.get(CRServo.class, "washer");
         Hold = hardwareMap.get(CRServo.class, "Hold");
         ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
-
-        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
         distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         SH.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -190,9 +187,8 @@ public class CloseBlueCPX extends OpMode {
         telemetry.addData("Reached Speed", hasReachedTargetSpeed);
 
         // 调试用：显示距离
-        if (distanceSensor != null && distanceSensor2 != null) {
-            telemetry.addData("Dist1", "%.1f", distanceSensor.getDistance(DistanceUnit.MM));
-            telemetry.addData("Dist2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
+        if (distanceSensor2 != null) {
+           telemetry.addData("Dist2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
         }
 
         telemetry.update();
@@ -204,12 +200,13 @@ public class CloseBlueCPX extends OpMode {
             // --- Standard 3 Cycles ---
             case 0:
                 follower.followPath(path1_Preload, true);
-                SH.setVelocity(calculateTicks(2350));
+                SH.setVelocity(calculateTicks(2550));
                 setPathState(1);
                 break;
             case 1:
                 if (!follower.isBusy()) {
-                    if (runLatchingShooterLogic(2350, 0.8)) {
+                    sleep(250);
+                    if (runLatchingShooterLogic(2550, 0.8)) {
                         stopShooting();
                         setPathState(2);
                     }
@@ -236,12 +233,13 @@ public class CloseBlueCPX extends OpMode {
                 stopIntake();
                 follower.setMaxPower(1);
                 follower.followPath(path4_Score1, true);
-                SH.setVelocity(calculateTicks(2550));
+                SH.setVelocity(calculateTicks(2700));
                 setPathState(7);
                 break;
             case 7: // Shoot 1
                 if (!follower.isBusy()) {
-                    if (runLatchingShooterLogic(2550, 0.85)) {
+                    sleep(150);
+                    if (runLatchingShooterLogic(2750, 0.85)) {
                         stopShooting();
                         setPathState(8);
                     }
@@ -274,7 +272,7 @@ public class CloseBlueCPX extends OpMode {
                 if (!follower.isBusy()) {
                     LP.setPosition(0.8156);
                     RP.setPosition(0.262);
-                    SH.setVelocity(calculateTicks(2300));
+                    SH.setVelocity(calculateTicks(2500));
                     setPathState(14);
                 }
                 break;
@@ -285,7 +283,8 @@ public class CloseBlueCPX extends OpMode {
                 break;
             case 15: // Shoot 2
                 if (!follower.isBusy()) {
-                    if (runLatchingShooterLogic(2550, 0.85)) {
+                    sleep(150);
+                    if (runLatchingShooterLogic(2750, 0.85)) {
                         stopShooting();
                         setPathState(16);
                     }
@@ -312,12 +311,13 @@ public class CloseBlueCPX extends OpMode {
                 stopIntake();
                 follower.setMaxPower(1);
                 follower.followPath(path11_Score3, true);
-                SH.setVelocity(calculateTicks(2500));
+                SH.setVelocity(calculateTicks(2700));
                 setPathState(21);
                 break;
             case 21: // Shoot 3
                 if (!follower.isBusy()) {
-                    if (runLatchingShooterLogic(2500, 0.85)) {
+                    sleep(150);
+                    if (runLatchingShooterLogic(2750, 0.85)) {
                         stopShooting();
                         setPathState(22);
                     }
@@ -350,7 +350,7 @@ public class CloseBlueCPX extends OpMode {
                     stopIntake();
                     follower.setMaxPower(1);
                     follower.followPath(path14_ReturnFromSub, true);
-                    SH.setVelocity(calculateTicks(2500));
+                    SH.setVelocity(calculateTicks(2700));
                     setPathState(26);
                 }
                 break;
@@ -358,7 +358,8 @@ public class CloseBlueCPX extends OpMode {
                 if (!follower.isBusy()) setPathState(27);
                 break;
             case 27:
-                if (runLatchingShooterLogic(2500, 0.85)) {
+                sleep(150);
+                if (runLatchingShooterLogic(2750, 0.85)) {
                     stopShooting();
                     setPathState(28);
                 }
@@ -395,7 +396,7 @@ public class CloseBlueCPX extends OpMode {
             }
         }
         if (hasReachedTargetSpeed) {
-            MOZART.setPower(1.0); Hold.setPower(1.0); ClassifyServo.setPower(1.0); washer.setPower(1.0);
+            MOZART.setPower(1.0); Hold.setPower(-1.0); ClassifyServo.setPower(1.0); washer.setPower(1.0);
             if (actionTimer.getElapsedTimeSeconds() >= fireDuration) return true;
         } else {
             MOZART.setPower(0);
@@ -411,16 +412,17 @@ public class CloseBlueCPX extends OpMode {
         Intake.setPower(1.0); washer.setPower(1.0); Hold.setPower(1.0); ClassifyServo.setPower(1.0);
 
         // 获取距离
-        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
         if (!isMozartBraked) {
-            if (dist1 < 50 || dist2 < 50) {
+            if (dist2 < 50) {
                 isMozartBraked = true;
             }
         }
         MOZART.setPower(isMozartBraked ? 0.0 : 1.0);
     }
-
+    private void sleep(long ms) {
+        try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
     private void stopIntake() { Intake.setPower(0); washer.setPower(0); Hold.setPower(0); ClassifyServo.setPower(0); MOZART.setPower(0); }
 }

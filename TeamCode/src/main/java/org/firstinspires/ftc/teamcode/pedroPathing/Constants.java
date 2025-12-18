@@ -22,14 +22,14 @@ public class Constants {
 
             .centripetalScaling(0.005)
 
-            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.018,0.0,0.00025,0.65,0.07))
-            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.01,0,0.0018,0.7,0.01))
+            .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.013,0.0,0.001,0.65,0.1))
+            .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.03,0,0.001,0.7,0.03))
 
-            .headingPIDFCoefficients(new PIDFCoefficients(2.5, 0, 0.2, 0.11))
-            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(2,0,0.08,0.022))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.7, 0, 0, 0.1))
+            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.8,0.01,0.001,0.02))
 
-            .translationalPIDFCoefficients(new PIDFCoefficients(0.07, 0, 0.01, 0.12))
-            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.05,0.00001,0.02,0.023));
+            .translationalPIDFCoefficients(new PIDFCoefficients(0.02, 0, 0.002, 0.13))
+            .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.08,0.00001,0.001,0.02));
 
 
     public static PathConstraints pathConstraints = new PathConstraints(0.99, 100, 1, 1);

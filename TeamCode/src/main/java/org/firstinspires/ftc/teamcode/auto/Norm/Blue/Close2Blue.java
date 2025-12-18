@@ -37,7 +37,6 @@ public class Close2Blue extends OpMode {
     private CRServo washer, Hold, ClassifyServo;
     private Servo LP, RP;
 
-    private DistanceSensor distanceSensor;
     private DistanceSensor distanceSensor2;
 
     // 路径定义 (移除了 Cycle 3 相关的路径)
@@ -73,7 +72,7 @@ public class Close2Blue extends OpMode {
 
         // Path 3: 吸取 1
         path3_Intake1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(42.400, 84.000), new Pose(19, 83.644)))
+                .addPath(new BezierLine(new Pose(42.400, 84.000), new Pose(22, 83.644)))
                 .setConstraints(slowConstraints)
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
@@ -81,7 +80,7 @@ public class Close2Blue extends OpMode {
         // Path 4: 推闸/机动
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(19, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
+                .addPath(new BezierCurve(new Pose(22, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
@@ -99,14 +98,14 @@ public class Close2Blue extends OpMode {
 
         // Path 7: 吸取 2
         path7_Intake2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(9.500, 63.5)))
+                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(12.500, 63.5)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 8: 发射 Cycle 2
         path8_Score2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(9.5000, 63.5), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(12.5000, 63.5), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
@@ -135,7 +134,6 @@ public class Close2Blue extends OpMode {
         Hold = hardwareMap.get(CRServo.class, "Hold");
         ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
 
-        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
         distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // --- 电机配置 ---
@@ -175,8 +173,7 @@ public class Close2Blue extends OpMode {
         telemetry.addData("SH RPM", getShooterRPM());
         telemetry.addData("Mozart Braked", isMozartBraked);
 
-        if (distanceSensor != null && distanceSensor2 != null) {
-            telemetry.addData("D1", "%.1f", distanceSensor.getDistance(DistanceUnit.MM));
+        if (distanceSensor2 != null) {
             telemetry.addData("D2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
         }
 
@@ -188,13 +185,14 @@ public class Close2Blue extends OpMode {
         switch (pathState) {
             case 0: // 开始 Path 1 (Preload)
                 follower.followPath(path1_Preload, true);
-                SH.setVelocity(2300);
+                SH.setVelocity(2500);
                 setPathState(1);
                 break;
 
             case 1: // 等待 Path 1 完成 -> 发射预载
                 if (!follower.isBusy()) {
-                    runShooterLogic(2350);
+                    sleep(150);
+                    runShooterLogic(2550);
                     if (actionTimer.getElapsedTimeSeconds() > 2) {
                         stopShooting();
                         setPathState(2);
@@ -240,7 +238,7 @@ public class Close2Blue extends OpMode {
                 if (!follower.isBusy()) {
                     LP.setPosition(0.8156);
                     RP.setPosition(0.262);
-                    SH.setVelocity(2300);
+                    SH.setVelocity(2500);
                     setPathState(8);
                 }
                 break;
@@ -252,7 +250,8 @@ public class Close2Blue extends OpMode {
 
             case 9: // 等待 Path 5 完成 -> 发射 Cycle 1
                 if (!follower.isBusy()) {
-                    runShooterLogic(2550);
+                    sleep(150);
+                    runShooterLogic(2750);
                     if (actionTimer.getElapsedTimeSeconds() > 2.5) {
                         stopShooting();
                         setPathState(10);
@@ -291,13 +290,14 @@ public class Close2Blue extends OpMode {
                 stopIntake();
                 follower.setMaxPower(1);
                 follower.followPath(path8_Score2, true);
-                SH.setVelocity(2300);
+                SH.setVelocity(2500);
                 setPathState(15);
                 break;
 
             case 15: // 等待 Path 8 完成 -> 发射 Cycle 2
                 if (!follower.isBusy()) {
-                    runShooterLogic(2550);
+                    sleep(150);
+                    runShooterLogic(2750);
                     if (actionTimer.getElapsedTimeSeconds() > 2.5) {
                         stopShooting();
                         // --- 关键修改：发射完 Cycle 2 后直接去停车 ---
@@ -338,9 +338,9 @@ public class Close2Blue extends OpMode {
 
         double currentRPM = getShooterRPM();
 
-        if (Math.abs(currentRPM - targetRPM) <= 1000) {
+        if (Math.abs(currentRPM - targetRPM) <= 100) {
             MOZART.setPower(1.0);
-            Hold.setPower(1.0);
+            Hold.setPower(-1.0);
             ClassifyServo.setPower(1.0);
             washer.setPower(1);
         } else {
@@ -366,11 +366,10 @@ public class Close2Blue extends OpMode {
         Hold.setPower(1.0);
         ClassifyServo.setPower(1.0);
 
-        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
         if (!isMozartBraked) {
-            if (dist1 < 50 || dist2 < 50) {
+            if (dist2 < 50) {
                 isMozartBraked = true;
             }
         }
@@ -388,5 +387,8 @@ public class Close2Blue extends OpMode {
         Hold.setPower(0);
         ClassifyServo.setPower(0);
         MOZART.setPower(0);
+    }
+    private void sleep(long ms) {
+        try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
 }
