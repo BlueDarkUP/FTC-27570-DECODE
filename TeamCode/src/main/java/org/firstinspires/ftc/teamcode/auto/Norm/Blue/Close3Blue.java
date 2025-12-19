@@ -34,8 +34,6 @@ public class Close3Blue extends OpMode {
 
     // 硬件定义
     private DcMotorEx SH, MOZART, Intake;
-    private CRServo washer, Hold, ClassifyServo;
-    private Servo LP, RP;
 
     private DistanceSensor distanceSensor2;
 
@@ -59,83 +57,104 @@ public class Close3Blue extends OpMode {
     private static final double GEAR_RATIO = 1.0;
     PathConstraints slowConstraints = new PathConstraints(30.0, 10.0, 1.0, 1.0);
     // 定义起始姿态
-    private final Pose startPose = new Pose(33.600, 135.560, Math.toRadians(270));
+    private final Pose startPose = new Pose(33.600, 135.560, Math.toRadians(90));
 
     public void buildPaths() {
         // Path 1: Preload
+        // 起点：270 -> 90 (车头出发)
+        // 终点(射击)：-48 -> 132 (车头对准篮筐)
         path1_Preload = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(33.600, 135.560), new Pose(48.500, 95.900)))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-48))
+                .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(132))
                 .build();
 
         // Path 2: 观测
+        // 起点：132 (射击姿态)
+        // 终点：180 (准备吸取) -> *保持不变* (车头吸取)
         path2_ToObelisk = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(48.500, 95.900), new Pose(60, 83.170), new Pose(42.400, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
+                .setLinearHeadingInterpolation(Math.toRadians(132), Math.toRadians(180))
                 .build();
 
         // Path 3: 吸取 1
+        // 角度：180 -> 180 (*保持不变*)
         path3_Intake1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(42.400, 84.000), new Pose(22, 83.644)))
+                .addPath(new BezierLine(new Pose(42.400, 84.000), new Pose(22.5, 86)))
                 .setConstraints(slowConstraints)
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 4: 推闸/机动
+        // 角度：180 -> 180 (*保持不变*)
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(22, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
+                .addPath(new BezierCurve(new Pose(22, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 80)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 5: 发射 Cycle 1
+        // 起点：180 (吸完)
+        // 终点：-48 -> 132 (车头对准篮筐)
         path5_Score1 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(18.00, 73.000), new Pose(59.900, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(136))
                 .build();
 
         // Path 6: 准备吸第二排
+        // 起点：132 (射完)
+        // 终点：180 (准备吸) -> *保持不变*
         path6_ToSpike2 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(59.900, 84), new Pose(48.000, 63.5)))
-                .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
+                .setLinearHeadingInterpolation(Math.toRadians(136), Math.toRadians(180))
                 .build();
 
         // Path 7: 吸取 2
+        // 这里用 Tangent，车向X轴负方向走，切线本身就是180度
+        // 所以 *保持不变*，车头依然向前
         path7_Intake2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(12.500, 63.5)))
+                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(12.500, 64.5)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 8: 发射 Cycle 2
+        // 起点：180 (吸完，或者Tangent也是180)
+        // 终点：-48 -> 132 (车头对准篮筐)
         path8_Score2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(12.5, 63.5), new Pose(59.900, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
+                .addPath(new BezierLine(new Pose(12.5, 64.5), new Pose(59.900, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(136))
                 .build();
 
         // Path 9: 准备吸第三排
+        // 起点：132 (射完)
+        // 终点：180 (准备吸) -> *保持不变*
         path9_ToSpike3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(59.880, 84.000), new Pose(48.000, 38)))
-                .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
+                .addPath(new BezierLine(new Pose(59.880, 84.000), new Pose(48.000, 45)))
+                .setLinearHeadingInterpolation(Math.toRadians(136), Math.toRadians(180))
                 .build();
 
         // Path 10: 吸取 3
+        // Tangent -> 180，*保持不变*
         path10_Intake3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 38), new Pose(12.500, 38)))
+                .addPath(new BezierLine(new Pose(48.000, 45), new Pose(12.500, 38)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 11: 发射 Cycle 3
+        // 起点：180
+        // 终点：-48 -> 132 (车头对准篮筐)
         path11_Score3 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(12.5, 38), new Pose(59.900, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(138))
                 .build();
 
         // Path 12: 停车
+        // 起点：132
+        // 终点：180 (停好)
         path12_Park = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(59.90, 84), new Pose(28.000, 70.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
+                .setLinearHeadingInterpolation(Math.toRadians(138), Math.toRadians(180))
                 .build();
     }
 
@@ -146,27 +165,21 @@ public class Close3Blue extends OpMode {
         opmodeTimer = new Timer();
 
         // --- 硬件初始化 ---
-        SH = hardwareMap.get(DcMotorEx.class, "SH");
-        MOZART = hardwareMap.get(DcMotorEx.class, "MOZART");
-        Intake = hardwareMap.get(DcMotorEx.class, "Intake");
-        RP = hardwareMap.get(Servo.class, "RP");
-        LP = hardwareMap.get(Servo.class, "LP");
-
-        washer = hardwareMap.get(CRServo.class, "washer");
-        Hold = hardwareMap.get(CRServo.class, "Hold");
-        ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
+        SH = hardwareMap.get(DcMotorEx.class, "Shooter");
+        MOZART = hardwareMap.get(DcMotorEx.class, "Load");
+        Intake = hardwareMap.get(DcMotorEx.class, "InTake");
 
         distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // --- 电机配置 ---
         SH.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        PIDFCoefficients pidfOrig = new PIDFCoefficients(250, 0.1, 30, 13);
+        PIDFCoefficients pidfOrig = new PIDFCoefficients(250, 0, 0.1, 13.5);
         SH.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfOrig);
 
         MOZART.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         SH.setDirection(DcMotorSimple.Direction.REVERSE);
-        LP.setPosition(0.3546);
-        RP.setPosition(0.667);
+        MOZART.setDirection(DcMotorSimple.Direction.REVERSE);
+        Intake.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // --- Follower 初始化 ---
         follower = Constants.createFollower(hardwareMap);
@@ -215,9 +228,9 @@ public class Close3Blue extends OpMode {
 
             case 1: // 等待 Path 1 完成 -> 发射预载
                 if (!follower.isBusy()) {
-                    sleep(150);
+                    sleep(300);
                     runShooterLogic(2550);
-                    if (actionTimer.getElapsedTimeSeconds() > 1) {
+                    if (actionTimer.getElapsedTimeSeconds() > 2) {
                         stopShooting();
                         setPathState(2);
                     }
@@ -239,7 +252,7 @@ public class Close3Blue extends OpMode {
 
             case 4: // 开始 Path 3 (吸取 1)
                 isMozartBraked = false;
-                follower.setMaxPower(0.9);
+                follower.setMaxPower(0.7);
                 follower.followPath(path3_Intake1, false);
                 setPathState(5);
                 break;
@@ -260,8 +273,6 @@ public class Close3Blue extends OpMode {
 
             case 7: // 等待 Path 4 完成
                 if (!follower.isBusy()) {
-                    LP.setPosition(0.8156);
-                    RP.setPosition(0.262);
                     SH.setVelocity(2550);
                     setPathState(8);
                 }
@@ -274,9 +285,9 @@ public class Close3Blue extends OpMode {
 
             case 9: // 等待 Path 5 完成 -> 发射 Cycle 1
                 if (!follower.isBusy()) {
-                    sleep(150);
+                    sleep(300);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 1.2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
                         stopShooting();
                         setPathState(10);
                     }
@@ -320,9 +331,9 @@ public class Close3Blue extends OpMode {
 
             case 15: // 等待 Path 8 完成 -> 发射 Cycle 2
                 if (!follower.isBusy()) {
-                    sleep(150);
+                    sleep(300);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 1.2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
                         stopShooting();
                         setPathState(16);
                     }
@@ -366,9 +377,9 @@ public class Close3Blue extends OpMode {
 
             case 21: // 等待 Path 11 完成 -> 发射 Cycle 3
                 if (!follower.isBusy()) {
-                    sleep(150);
+                    sleep(300);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 1.2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
                         stopShooting();
                         setPathState(22);
                     }
@@ -404,11 +415,9 @@ public class Close3Blue extends OpMode {
 
         double currentRPM = getShooterRPM();
 
-        if (Math.abs(currentRPM - targetRPM) <= 100) {
+        if (Math.abs(currentRPM - targetRPM) <= 150) {
             MOZART.setPower(1.0);
-            Hold.setPower(-1.0);
-            ClassifyServo.setPower(1.0);
-            washer.setPower(1);
+            Intake.setPower(1.0);
         } else {
             MOZART.setPower(0);
         }
@@ -417,9 +426,6 @@ public class Close3Blue extends OpMode {
     private void stopShooting() {
         SH.setPower(0);
         MOZART.setPower(0);
-        Hold.setPower(0);
-        ClassifyServo.setPower(0);
-        washer.setPower(0);
     }
 
     private double getShooterRPM() {
@@ -429,15 +435,12 @@ public class Close3Blue extends OpMode {
     private void runIntakeLogic() {
         // 1. 基础结构开启
         Intake.setPower(1.0);
-        washer.setPower(1.0);
-        Hold.setPower(1.0);
-        ClassifyServo.setPower(1.0);
 
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
         if (!isMozartBraked) {
             // 任意一个传感器距离小于 50mm 则判定为有球
-            if (dist2 < 50) {
+            if (dist2 < 60) {
                 isMozartBraked = true; // 锁定刹车状态
             }
         }
@@ -453,10 +456,7 @@ public class Close3Blue extends OpMode {
         try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
     private void stopIntake() {
-        Intake.setPower(0);
-        washer.setPower(0);
-        Hold.setPower(0);
-        ClassifyServo.setPower(0);
+        Intake.setPower(1);
         MOZART.setPower(0);
     }
 }

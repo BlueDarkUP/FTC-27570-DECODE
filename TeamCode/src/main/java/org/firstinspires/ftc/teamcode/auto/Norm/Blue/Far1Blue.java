@@ -32,8 +32,6 @@ public class Far1Blue extends OpMode {
 
     // 硬件定义
     private DcMotorEx SH, MOZART, Intake;
-    private CRServo washer, Hold, ClassifyServo;
-    private Servo LP, RP;
 
     private DistanceSensor distanceSensor2;
 
@@ -58,64 +56,83 @@ public class Far1Blue extends OpMode {
     PathConstraints slowConstraints = new PathConstraints(15.0, 10.0, 1.0, 1.0);
 
     // 起始姿态 (Far Side)
-    private final Pose startPose = new Pose(56.200, 8.080, Math.toRadians(270));
+    private final Pose startPose = new Pose(56.200, 8.080, Math.toRadians(90));
 
     public void buildPaths() {
         // Path 1: 预载去发射位
+        // 动作：从起点走到发射点
+        // 起点角度：270 -> 改为 90 (车头出发)
+        // 终点角度(发射)：-69 (背射) -> 改为 111 (前射，对着篮筐)
         path1_Preload = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(56.200, 8.080), new Pose(57.800, 14.250)))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-69))
+                .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(111))
                 .build();
 
         // Path 2: 去吸取准备位
+        // 动作：发射完去中间准备吸取
+        // 起点：111 (前射角度)
+        // 终点：180 (车头向左，准备吸取) -> *保持不变*，因为你结构还是前吸
         path2_ToIntakePos = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(57.800, 14.250), new Pose(48.280, 33.00)))
-                .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(180))
+                .setLinearHeadingInterpolation(Math.toRadians(111), Math.toRadians(180))
                 .build();
 
         // Path 3: 吸取第一个样本
+        // 动作：向前冲刺吸取
+        // 角度：180 -> 180 (*保持不变*，车头朝前冲)
         path3_Intake1 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(48.280, 33), new Pose(9.500, 33.00)))
-                .setConstraints(slowConstraints) // 使用慢速更稳定
+                .setConstraints(slowConstraints)
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 4: 回分 (Cycle 1)
+        // 动作：吸完回去射击
+        // 起点：180 (吸取姿态)
+        // 终点(发射)：-69 -> 改为 111 (车头对准篮筐)
         path4_Score1 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(7.500, 35.500), new Pose(57.800, 14.250)))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-69))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(111))
                 .build();
 
         // --- 连贯吸取序列 (Path 5 - 8) ---
+
         // Path 5: 嘬一口
+        // 起点：111 (发射姿态)
+        // 终点：-156 (车头对准场边样本) -> *保持不变* (这是前吸角度)
         path5_Sip1 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(57.800, 14.250), new Pose(11.000, 17.220)))
-                .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(-156))
+                .setLinearHeadingInterpolation(Math.toRadians(111), Math.toRadians(-156))
                 .build();
 
         // Path 6: 嘬两口
+        // 角度：-156 -> -156 (*保持不变*)
         path6_Sip2 = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(11.000, 17.220), new Pose(14.370, 14.250), new Pose(11.160, 10.930)))
                 .setLinearHeadingInterpolation(Math.toRadians(-156), Math.toRadians(-156))
                 .build();
 
         // Path 7: 还想嘬
+        // 角度：-156 -> -90 (*保持不变*，假设这是调整车头去吸角落的姿态)
         path7_Sip3 = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(11.160, 10.930), new Pose(16, 16), new Pose(11, 9)))
                 .setLinearHeadingInterpolation(Math.toRadians(-156), Math.toRadians(-90))
                 .build();
 
-        // Path 9: 回分 (Cycle 2 - 对应复杂的嘬一口序列)
-        // 这一段需要把 Path 8 的终点连回发射点
+        // Path 9: 回分 (Cycle 2)
+        // 起点：-90 (吸取姿态)
+        // 终点：111 (车头对准篮筐)
         path9_Score2 = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(10.7, 9), new Pose(32.300, 14.000), new Pose(57.800, 14.250)))
-                .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-69))
+                .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(111))
                 .build();
 
         // Path 10: 停车/结束
+        // 起点：111
+        // 终点：180 (停车姿态)
         path10_Park = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(57.800, 14.250), new Pose(28.280, 13.540), new Pose(21.380, 9.980)))
-                .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(180))
+                .setLinearHeadingInterpolation(Math.toRadians(111), Math.toRadians(180))
                 .build();
     }
 
@@ -126,26 +143,20 @@ public class Far1Blue extends OpMode {
         opmodeTimer = new Timer();
 
         // 硬件映射
-        SH = hardwareMap.get(DcMotorEx.class, "SH");
-        MOZART = hardwareMap.get(DcMotorEx.class, "MOZART");
-        Intake = hardwareMap.get(DcMotorEx.class, "Intake");
-        RP = hardwareMap.get(Servo.class, "RP");
-        LP = hardwareMap.get(Servo.class, "LP");
-        washer = hardwareMap.get(CRServo.class, "washer");
-        Hold = hardwareMap.get(CRServo.class, "Hold");
-        ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
+        SH = hardwareMap.get(DcMotorEx.class, "Shooter");
+        MOZART = hardwareMap.get(DcMotorEx.class, "Load");
+        Intake = hardwareMap.get(DcMotorEx.class, "InTake");
 
         distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // 电机配置
         SH.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        SH.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(250, 0.1, 30, 13));
+        SH.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(250, 0, 0.1, 13.5));
         SH.setDirection(DcMotorSimple.Direction.REVERSE);
+        MOZART.setDirection(DcMotorSimple.Direction.REVERSE);
+        Intake.setDirection(DcMotorSimple.Direction.REVERSE);
         MOZART.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // --- 舵机初始化位置 (Far模式要求) ---
-        RP.setPosition(0.1);
-        LP.setPosition(1.0);
 
         // Follower
         follower = Constants.createFollower(hardwareMap);
@@ -349,9 +360,6 @@ public class Far1Blue extends OpMode {
 
         if (Math.abs(currentRPM - targetRPM) <= 150) {
             MOZART.setPower(1.0);
-            Hold.setPower(-1.0);
-            ClassifyServo.setPower(1.0);
-            washer.setPower(1);
         } else {
             MOZART.setPower(0);
         }
@@ -360,9 +368,6 @@ public class Far1Blue extends OpMode {
     private void stopShooting() {
         SH.setPower(0);
         MOZART.setPower(0);
-        Hold.setPower(0);
-        ClassifyServo.setPower(0);
-        washer.setPower(0);
     }
 
     private double getShooterRPM() {
@@ -371,9 +376,6 @@ public class Far1Blue extends OpMode {
 
     private void runIntakeLogic() {
         Intake.setPower(1.0);
-        washer.setPower(1.0);
-        Hold.setPower(1.0);
-        ClassifyServo.setPower(1.0);
 
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
@@ -393,9 +395,6 @@ public class Far1Blue extends OpMode {
 
     private void stopIntake() {
         Intake.setPower(0);
-        washer.setPower(0);
-        Hold.setPower(0);
-        ClassifyServo.setPower(0);
         MOZART.setPower(0);
     }
     private void sleep(long ms) {

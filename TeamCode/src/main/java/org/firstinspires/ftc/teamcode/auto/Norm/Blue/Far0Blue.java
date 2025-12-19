@@ -31,8 +31,6 @@ public class Far0Blue extends OpMode {
 
     // 硬件定义
     private DcMotorEx SH, MOZART, Intake;
-    private CRServo washer, Hold, ClassifyServo;
-    private Servo LP, RP;
 
     private DistanceSensor distanceSensor2;
 
@@ -96,26 +94,20 @@ public class Far0Blue extends OpMode {
         opmodeTimer = new Timer();
 
         // 硬件映射
-        SH = hardwareMap.get(DcMotorEx.class, "SH");
-        MOZART = hardwareMap.get(DcMotorEx.class, "MOZART");
-        Intake = hardwareMap.get(DcMotorEx.class, "Intake");
-        RP = hardwareMap.get(Servo.class, "RP");
-        LP = hardwareMap.get(Servo.class, "LP");
-        washer = hardwareMap.get(CRServo.class, "washer");
-        Hold = hardwareMap.get(CRServo.class, "Hold");
-        ClassifyServo = hardwareMap.get(CRServo.class, "ClassifyServo");
+        SH = hardwareMap.get(DcMotorEx.class, "Shooter");
+        MOZART = hardwareMap.get(DcMotorEx.class, "Load");
+        Intake = hardwareMap.get(DcMotorEx.class, "InTake");
 
         distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // 电机配置
         SH.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        SH.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(250, 0.1, 30, 13));
+        SH.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(250, 0, 0.1, 13.5));
         SH.setDirection(DcMotorSimple.Direction.REVERSE);
+        MOZART.setDirection(DcMotorSimple.Direction.REVERSE);
+        Intake.setDirection(DcMotorSimple.Direction.REVERSE);
         MOZART.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // 舵机初始化 (Far模式)
-        RP.setPosition(0.1);
-        LP.setPosition(1.0);
 
         // Follower
         follower = Constants.createFollower(hardwareMap);
@@ -269,9 +261,6 @@ public class Far0Blue extends OpMode {
 
         if (Math.abs(currentRPM - targetRPM) <= 150) {
             MOZART.setPower(1.0);
-            Hold.setPower(-1.0);
-            ClassifyServo.setPower(1.0);
-            washer.setPower(1.0);
         } else {
             MOZART.setPower(0);
         }
@@ -280,9 +269,6 @@ public class Far0Blue extends OpMode {
     private void stopShooting() {
         SH.setPower(0);
         MOZART.setPower(0);
-        Hold.setPower(0);
-        ClassifyServo.setPower(0);
-        washer.setPower(0);
     }
 
     private double getShooterRPM() {
@@ -291,9 +277,6 @@ public class Far0Blue extends OpMode {
 
     private void runIntakeLogic() {
         Intake.setPower(1.0);
-        washer.setPower(1.0);
-        Hold.setPower(1.0);
-        ClassifyServo.setPower(1.0);
 
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
@@ -313,9 +296,6 @@ public class Far0Blue extends OpMode {
 
     private void stopIntake() {
         Intake.setPower(0);
-        washer.setPower(0);
-        Hold.setPower(0);
-        ClassifyServo.setPower(0);
         MOZART.setPower(0);
     }
     private void sleep(long ms) {
