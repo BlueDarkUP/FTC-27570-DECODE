@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.Norm.Blue;
+package org.firstinspires.ftc.teamcode.auto.Norm.Red; // 包名已修改为 Red
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -13,15 +13,15 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DistanceSensor; // 新增
+import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "近点 两排 蓝方", group = "PedroPathing")
-public class Close2Blue extends OpMode {
+@Autonomous(name = "近点 三排 红方", group = "PedroPathing")
+public class Close3Red extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer, opmodeTimer;
@@ -37,7 +37,8 @@ public class Close2Blue extends OpMode {
 
     private DistanceSensor distanceSensor2;
 
-    // 路径定义 (移除了 Cycle 3 相关的路径)
+
+    // 路径定义
     private PathChain path1_Preload;
     private PathChain path2_ToObelisk;
     private PathChain path3_Intake1;
@@ -46,87 +47,123 @@ public class Close2Blue extends OpMode {
     private PathChain path6_ToSpike2;
     private PathChain path7_Intake2;
     private PathChain path8_Score2;
-    private PathChain path12_Park; // 直接接停车
+    private PathChain path9_ToSpike3;
+    private PathChain path10_Intake3;
+    private PathChain path11_Score3;
+    private PathChain path12_Park;
 
     // 常量配置
     private static final double TICKS_PER_REV = 28.0;
     private static final double GEAR_RATIO = 1.0;
     PathConstraints slowConstraints = new PathConstraints(30.0, 10.0, 1.0, 1.0);
-    // 定义起始姿态
-    private final Pose startPose = new Pose(33.600, 135.560, Math.toRadians(90));
+
+    // 定义起始姿态 (镜像: X=144-33.6=110.4, Heading=180-90=90)
+    private final Pose startPose = new Pose(110.400, 135.560, Math.toRadians(90));
 
     public void buildPaths() {
         // Path 1: Preload
-        // 起点：270 -> 改为 90 (车头出发)
-        // 终点(射击)：-48 (背射) -> 改为 132 (前射)
+        // End X: 144 - 48.5 = 95.5
+        // Heading: 90 -> 48
         path1_Preload = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(33.600, 135.560), new Pose(48.500, 95.900)))
-                .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(132))
+                .addPath(new BezierLine(new Pose(110.400, 135.560), new Pose(95.500, 95.900)))
+                .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(48))
                 .build();
 
-        // Path 2: 观测 / 去吸取位
-        // 起点：132 (前射姿态)
-        // 终点：180 (车头向左吸取) -> *保持不变* (前吸)
+        // Path 2: 观测
+        // Control X: 144 - 60 = 84
+        // End X: 144 - 42.4 = 101.6
+        // Heading: 48 -> 0
         path2_ToObelisk = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(48.500, 95.900), new Pose(60, 83.170), new Pose(42.400, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(132), Math.toRadians(180))
+                .addPath(new BezierCurve(new Pose(95.500, 95.900), new Pose(84.000, 83.170), new Pose(101.600, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(48), Math.toRadians(0))
                 .build();
 
         // Path 3: 吸取 1
-        // 角度：180 -> 180 (*保持不变*，车头朝前冲去吸)
+        // End X: 144 - 22.5 = 121.5
+        // Heading: 0 -> 0
         path3_Intake1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(42.400, 84.000), new Pose(22.5, 86)))
+                .addPath(new BezierLine(new Pose(101.600, 84.000), new Pose(121.500, 86.000)))
                 .setConstraints(slowConstraints)
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
 
         // Path 4: 推闸/机动
-        // 角度：180 -> 180 (*保持不变*)
+        // Start X: 144 - 22 = 122
+        // Control X: 144 - 30 = 114
+        // End X: 144 - 18 = 126
+        // Heading: 0 -> 0
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(22, 86), new Pose(30.000, 77.000), new Pose(18.000, 80.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                .addPath(new BezierCurve(new Pose(122.000, 83.644), new Pose(114.000, 77.000), new Pose(126.000, 80.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
 
         // Path 5: 发射 Cycle 1
-        // 起点：180 (吸取完)
-        // 终点：-48 -> 改为 132 (车头对准篮筐)
+        // End X: 144 - 59.9 = 84.1
+        // Heading: 0 -> 44
         path5_Score1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(18, 73.000), new Pose(59.900, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(136))
+                .addPath(new BezierLine(new Pose(126.000, 73.000), new Pose(84.100, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(44))
                 .build();
 
         // Path 6: 准备吸第二排
-        // 起点：132 (射击完)
-        // 终点：180 (准备吸取) -> *保持不变*
+        // End X: 144 - 48 = 96
+        // Heading: 44 -> 0
         path6_ToSpike2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(59.900, 84.00), new Pose(48.000, 63.5)))
-                .setLinearHeadingInterpolation(Math.toRadians(132), Math.toRadians(180))
+                .addPath(new BezierLine(new Pose(84.100, 84.000), new Pose(96.000, 63.5)))
+                .setLinearHeadingInterpolation(Math.toRadians(44), Math.toRadians(0))
                 .build();
 
         // Path 7: 吸取 2
-        // 这里用了 Tangent，因为车是向X轴负方向移动，切线角度本身就是 180度
-        // 所以 *保持不变* 即可，它会自动保持车头向前
+        // End X: 144 - 12.5 = 131.5
+        // Tangent
         path7_Intake2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 63.5), new Pose(12.500, 64.5)))
+                .addPath(new BezierLine(new Pose(96.000, 63.5), new Pose(131.500, 64.5)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 8: 发射 Cycle 2
-        // 起点：180 (吸取完)
-        // 终点：-48 -> 改为 132 (车头对准篮筐)
+        // End X: 84.1
+        // Heading: 0 -> 44
         path8_Score2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(12.5000, 64.5), new Pose(59.900, 84.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(136))
+                .addPath(new BezierLine(new Pose(131.500, 64.5), new Pose(84.100, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(44))
+                .build();
+
+        // Path 9: 准备吸第三排
+        // Start X: 144 - 59.88 = 84.12
+        // End X: 144 - 48 = 96
+        // Heading: 44 -> 0
+        path9_ToSpike3 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(84.120, 84.000), new Pose(96.000, 45.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(44), Math.toRadians(0))
+                .build();
+
+        // Path 10: 吸取 3
+        // End X: 144 - 12.5 = 131.5
+        // Tangent
+        path10_Intake3 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(96.000, 45.000), new Pose(131.500, 38.000)))
+                .setConstraints(slowConstraints)
+                .setTangentHeadingInterpolation()
+                .build();
+
+        // Path 11: 发射 Cycle 3
+        // End X: 84.1
+        // Heading: 0 -> 42
+        path11_Score3 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(131.500, 38.000), new Pose(84.100, 84.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(42))
                 .build();
 
         // Path 12: 停车
-        // 起点：132 (射击完)
-        // 终点：180 (停车姿态)
+        // Start X: 144 - 59.9 = 84.1
+        // End X: 144 - 28 = 116
+        // Heading: 42 -> 0
         path12_Park = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(59.760, 83.760), new Pose(28.000, 70.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(132), Math.toRadians(180))
+                .addPath(new BezierLine(new Pose(84.100, 84.000), new Pose(116.000, 70.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(42), Math.toRadians(0))
                 .build();
     }
 
@@ -158,7 +195,7 @@ public class Close2Blue extends OpMode {
         follower.setStartingPose(startPose);
         buildPaths();
 
-        telemetry.addData("Status", "Close2CO Initialized");
+        telemetry.addData("Status", "Close3Red Initialized");
         telemetry.update();
     }
 
@@ -173,6 +210,7 @@ public class Close2Blue extends OpMode {
         follower.update();
         autonomousPathUpdate();
 
+        // Telemetry
         telemetry.addData("Path State", pathState);
         telemetry.addData("X", follower.getPose().getX());
         telemetry.addData("Y", follower.getPose().getY());
@@ -180,6 +218,7 @@ public class Close2Blue extends OpMode {
         telemetry.addData("SH RPM", getShooterRPM());
         telemetry.addData("Mozart Braked", isMozartBraked);
 
+        // 调试用
         if (distanceSensor2 != null) {
             telemetry.addData("D2", "%.1f", distanceSensor2.getDistance(DistanceUnit.MM));
         }
@@ -198,7 +237,7 @@ public class Close2Blue extends OpMode {
 
             case 1: // 等待 Path 1 完成 -> 发射预载
                 if (!follower.isBusy()) {
-                    sleep(150);
+                    sleep(300);
                     runShooterLogic(2550);
                     if (actionTimer.getElapsedTimeSeconds() > 2) {
                         stopShooting();
@@ -228,7 +267,7 @@ public class Close2Blue extends OpMode {
                 break;
 
             case 5: // Path 3 运行中
-                runIntakeLogic();
+                runIntakeLogic(); // 执行吸取逻辑
                 if (!follower.isBusy()) {
                     setPathState(6);
                 }
@@ -243,7 +282,7 @@ public class Close2Blue extends OpMode {
 
             case 7: // 等待 Path 4 完成
                 if (!follower.isBusy()) {
-                    SH.setVelocity(2500);
+                    SH.setVelocity(2550);
                     setPathState(8);
                 }
                 break;
@@ -255,9 +294,9 @@ public class Close2Blue extends OpMode {
 
             case 9: // 等待 Path 5 完成 -> 发射 Cycle 1
                 if (!follower.isBusy()) {
-                    sleep(150);
+                    sleep(300);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 2.5) {
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
                         stopShooting();
                         setPathState(10);
                     }
@@ -301,11 +340,10 @@ public class Close2Blue extends OpMode {
 
             case 15: // 等待 Path 8 完成 -> 发射 Cycle 2
                 if (!follower.isBusy()) {
-                    sleep(150);
+                    sleep(300);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 2.5) {
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
                         stopShooting();
-                        // --- 关键修改：发射完 Cycle 2 后直接去停车 ---
                         setPathState(16);
                     }
                 } else {
@@ -313,15 +351,58 @@ public class Close2Blue extends OpMode {
                 }
                 break;
 
-            // --- 移除了 Cycle 3 相关的 Case (16-21) ---
-
-            case 16: // 开始 Path 12 (停车)
-                // 这里对应原来的 Path 12
-                follower.followPath(path12_Park, true);
+            case 16: // 开始 Path 9 (去 Spike 3)
+                follower.followPath(path9_ToSpike3, true);
                 setPathState(17);
                 break;
 
-            case 17: // 结束
+            case 17: // 等待 Path 9
+                if (!follower.isBusy()) {
+                    setPathState(18);
+                }
+                break;
+
+            case 18: // 开始 Path 10 (吸取 3)
+                isMozartBraked = false;
+                follower.setMaxPower(0.7);
+                follower.followPath(path10_Intake3, false);
+                setPathState(19);
+                break;
+
+            case 19: // Path 10 运行中
+                runIntakeLogic();
+                if (!follower.isBusy()) {
+                    setPathState(20);
+                }
+                break;
+
+            case 20: // 开始 Path 11 (回分 Cycle 3)
+                stopIntake();
+                follower.setMaxPower(1);
+                follower.followPath(path11_Score3, true);
+                SH.setVelocity(2500);
+                setPathState(21);
+                break;
+
+            case 21: // 等待 Path 11 完成 -> 发射 Cycle 3
+                if (!follower.isBusy()) {
+                    sleep(300);
+                    runShooterLogic(2750);
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
+                        stopShooting();
+                        setPathState(22);
+                    }
+                } else {
+                    actionTimer.resetTimer();
+                }
+                break;
+
+            case 22: // 开始 Path 12 (停车)
+                follower.followPath(path12_Park, true);
+                setPathState(23);
+                break;
+
+            case 23: // 结束
                 if (!follower.isBusy()) {
                     setPathState(-1);
                 }
@@ -343,9 +424,9 @@ public class Close2Blue extends OpMode {
 
         double currentRPM = getShooterRPM();
 
-        if (Math.abs(currentRPM - targetRPM) <= 100) {
+        if (Math.abs(currentRPM - targetRPM) <= 150) {
             MOZART.setPower(1.0);
-            Intake.setPower(1);
+            Intake.setPower(1.0);
         } else {
             MOZART.setPower(0);
         }
@@ -354,7 +435,6 @@ public class Close2Blue extends OpMode {
     private void stopShooting() {
         SH.setPower(0);
         MOZART.setPower(0);
-        Intake.setPower(0);
     }
 
     private double getShooterRPM() {
@@ -362,28 +442,30 @@ public class Close2Blue extends OpMode {
     }
 
     private void runIntakeLogic() {
+        // 1. 基础结构开启
         Intake.setPower(1.0);
 
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
         if (!isMozartBraked) {
-            if (dist2 < 50) {
-                isMozartBraked = true;
+            // 任意一个传感器距离小于 50mm 则判定为有球
+            if (dist2 < 60) {
+                isMozartBraked = true; // 锁定刹车状态
             }
         }
 
+        // 3. 根据状态控制 MOZART
         if (isMozartBraked) {
-            MOZART.setPower(0.0);
+            MOZART.setPower(0.0); // 停止
         } else {
-            MOZART.setPower(1.0);
+            MOZART.setPower(1.0); // 运行
         }
-    }
-
-    private void stopIntake() {
-        Intake.setPower(0);
-        MOZART.setPower(0);
     }
     private void sleep(long ms) {
         try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    private void stopIntake() {
+        Intake.setPower(1);
+        MOZART.setPower(0);
     }
 }
