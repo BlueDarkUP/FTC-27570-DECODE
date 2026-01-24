@@ -30,7 +30,6 @@ public class SortingSubsystem {
     private CRServo washerServo;
     private Servo bbbServo;
 
-    private DistanceSensor distanceSensor;  // "juju"
     private DistanceSensor distanceSensor2; // "juju2"
 
     private NormalizedColorSensor bufferSensor;
@@ -75,8 +74,6 @@ public class SortingSubsystem {
         washerServo = hardwareMap.get(CRServo.class, "washer");
         bbbServo = hardwareMap.get(Servo.class, "bbb");
 
-        // 修改：初始化距离传感器，移除原 ballSensor
-        distanceSensor = hardwareMap.get(DistanceSensor.class, "juju");
         distanceSensor2 = hardwareMap.get(DistanceSensor.class, "juju2");
 
         // 保留：bufferSensor 初始化
@@ -99,11 +96,10 @@ public class SortingSubsystem {
 
     // 修改：使用距离传感器判断闸门处是否有球
     private boolean isBallAtGate() {
-        double dist1 = distanceSensor.getDistance(DistanceUnit.MM);
         double dist2 = distanceSensor2.getDistance(DistanceUnit.MM);
 
         // 任意一个传感器距离小于阈值，视为有球
-        return (dist1 < DISTANCE_THRESHOLD_MM || dist2 < DISTANCE_THRESHOLD_MM);
+        return (dist2 < DISTANCE_THRESHOLD_MM);
     }
 
     // 保留：缓存处使用颜色传感器判断

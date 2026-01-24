@@ -20,7 +20,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "近点 两排 蓝方", group = "PedroPathing")
+@Autonomous(name = "近点 两排 蓝方", group = "A")
 public class Close2Blue extends OpMode {
 
     private Follower follower;
@@ -80,13 +80,13 @@ public class Close2Blue extends OpMode {
         // Path 4: 推闸/机动
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(22, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
+                .addPath(new BezierCurve(new Pose(22, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 75.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 5: 发射 Cycle 1
         path5_Score1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(18, 73.000), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(18, 75.000), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
@@ -193,7 +193,7 @@ public class Close2Blue extends OpMode {
                 if (!follower.isBusy()) {
                     sleep(150);
                     runShooterLogic(2550);
-                    if (actionTimer.getElapsedTimeSeconds() > 2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 2.5) {
                         stopShooting();
                         setPathState(2);
                     }

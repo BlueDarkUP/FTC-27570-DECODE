@@ -19,7 +19,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "远点 不吸 蓝方", group = "PedroPathing")
+@Autonomous(name = "远点 不吸 蓝方", group = "A")
 public class Far0Blue extends OpMode {
 
     private Follower follower;
@@ -78,13 +78,13 @@ public class Far0Blue extends OpMode {
                 .build();
 
         path9_Score = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(10.7, 9), new Pose(32.300, 14.000), new Pose(57.800, 14.250)))
+                .addPath(new BezierCurve(new Pose(10.7, 9), new Pose(32.300, 16.000), new Pose(57.800, 14.250)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-69))
                 .build();
 
         // Path 10: 让我看看 (停车)
         path10_Park = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(57.740, 14.250), new Pose(28.280, 13.540), new Pose(21.380, 9.980)))
+                .addPath(new BezierCurve(new Pose(57.740, 14.250), new Pose(28.280, 16), new Pose(21.380, 9.980)))
                 .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(180))
                 .build();
     }
@@ -162,9 +162,8 @@ public class Far0Blue extends OpMode {
 
             case 1: // Wait for Path 1 -> Shoot Preload
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 4.3) {
+                    if (actionTimer.getElapsedTimeSeconds() > 4.5) {
                         stopShooting();
                         setPathState(2);
                     }
@@ -195,7 +194,7 @@ public class Far0Blue extends OpMode {
                 break;
 
             case 6: // Path 7: Sip 3
-                follower.followPath(path7_Sip3, false);
+                follower.followPath(path7_Sip3, true );
                 setPathState(7);
                 break;
 
@@ -217,8 +216,7 @@ public class Far0Blue extends OpMode {
 
             // --- 吸取结束，回分 ---
 
-            case 10: // Path 9: Return to Score
-                sleep(500); // 稍微缓冲一下
+            case 10:
                 stopIntake();
                 follower.followPath(path9_Score, true);
                 SH.setVelocity(calculateTicks(FAR_SHOT_RPM));
@@ -227,9 +225,8 @@ public class Far0Blue extends OpMode {
 
             case 11: // Wait for Path 9 -> Shoot Cycle 1
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 4.3) {
+                    if (actionTimer.getElapsedTimeSeconds() > 4.5) {
                         stopShooting();
                         setPathState(12);
                     }
@@ -267,8 +264,8 @@ public class Far0Blue extends OpMode {
         SH.setVelocity(calculateTicks(targetRPM));
         double currentRPM = getShooterRPM();
 
-        if (Math.abs(currentRPM - targetRPM) <= 150) {
-            MOZART.setPower(1.0);
+        if (Math.abs(currentRPM - targetRPM) <= 50) {
+            MOZART.setPower(1);
             Hold.setPower(-1.0);
             ClassifyServo.setPower(1.0);
             washer.setPower(1.0);

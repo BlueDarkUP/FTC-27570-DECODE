@@ -25,8 +25,8 @@ public class Constants {
             .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.013,0.0,0.001,0.65,0.1))
             .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.03,0,0.001,0.7,0.03))
 
-            .headingPIDFCoefficients(new PIDFCoefficients(0.7, 0, 0, 0.1))
-            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.8,0.01,0.001,0.02))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.4, 0, 0, 0.1))
+            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.7,0.0,0.001,0.02))
 
             .translationalPIDFCoefficients(new PIDFCoefficients(0.02, 0, 0.002, 0.13))
             .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.08,0.00001,0.001,0.02));
@@ -60,6 +60,6 @@ public class Constants {
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
             .xVelocity(91)
-            .yVelocity(91);
+            .yVelocity(78);
 
     }

@@ -20,7 +20,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "近点 三排 蓝方", group = "PedroPathing")
+@Autonomous(name = "近点 三排 蓝方", group = "A")
 public class Close3Blue extends OpMode {
 
     private Follower follower;
@@ -48,6 +48,7 @@ public class Close3Blue extends OpMode {
     private PathChain path5_Score1;
     private PathChain path6_ToSpike2;
     private PathChain path7_Intake2;
+    private PathChain Maneuver2;
     private PathChain path8_Score2;
     private PathChain path9_ToSpike3;
     private PathChain path10_Intake3;
@@ -84,13 +85,13 @@ public class Close3Blue extends OpMode {
         // Path 4: 推闸/机动
         path4_Maneuver = follower.pathBuilder()
                 .setConstraints(slowConstraints)
-                .addPath(new BezierCurve(new Pose(22, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 73.000)))
+                .addPath(new BezierCurve(new Pose(22, 83.644), new Pose(30.000, 77.000), new Pose(18.000, 75.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
                 .build();
 
         // Path 5: 发射 Cycle 1
         path5_Score1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(18.00, 73.000), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(18.00, 75.000), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
@@ -107,9 +108,14 @@ public class Close3Blue extends OpMode {
                 .setTangentHeadingInterpolation()
                 .build();
 
+        Maneuver2 = follower.pathBuilder()
+                .addPath(new BezierCurve(new Pose(12.5, 63.5), new Pose(27.5, 67.88), new Pose(18.00, 75.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180))
+                .build();
+
         // Path 8: 发射 Cycle 2
         path8_Score2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(12.5, 63.5), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(18, 75), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
@@ -121,20 +127,20 @@ public class Close3Blue extends OpMode {
 
         // Path 10: 吸取 3
         path10_Intake3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(48.000, 38), new Pose(12.500, 38)))
+                .addPath(new BezierLine(new Pose(48.000, 38), new Pose(11, 38)))
                 .setConstraints(slowConstraints)
                 .setTangentHeadingInterpolation()
                 .build();
 
         // Path 11: 发射 Cycle 3
         path11_Score3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(12.5, 38), new Pose(59.900, 84.000)))
+                .addPath(new BezierLine(new Pose(11, 38), new Pose(59.900, 84.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48))
                 .build();
 
         // Path 12: 停车
         path12_Park = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(59.90, 84), new Pose(28.000, 70.000)))
+                .addPath(new BezierLine(new Pose(59.90, 84), new Pose(37.000, 65.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180))
                 .build();
     }
@@ -208,16 +214,15 @@ public class Close3Blue extends OpMode {
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0: // 开始 Path 1 (Preload)
+                follower.setMaxPower(0.8);
                 follower.followPath(path1_Preload, true);
-                SH.setVelocity(2500);
                 setPathState(1);
                 break;
 
             case 1: // 等待 Path 1 完成 -> 发射预载
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(2550);
-                    if (actionTimer.getElapsedTimeSeconds() > 1) {
+                    if (actionTimer.getElapsedTimeSeconds() > 3) {
                         stopShooting();
                         setPathState(2);
                     }
@@ -252,7 +257,7 @@ public class Close3Blue extends OpMode {
                 break;
 
             case 6: // 开始 Path 4 (推闸/机动)
-                follower.setMaxPower(1);
+                follower.setMaxPower(0.5);
                 stopIntake();
                 follower.followPath(path4_Maneuver, true);
                 setPathState(7);
@@ -260,6 +265,7 @@ public class Close3Blue extends OpMode {
 
             case 7: // 等待 Path 4 完成
                 if (!follower.isBusy()) {
+                    sleep(1000);
                     LP.setPosition(0.8156);
                     RP.setPosition(0.262);
                     SH.setVelocity(2550);
@@ -268,15 +274,15 @@ public class Close3Blue extends OpMode {
                 break;
 
             case 8: // 开始 Path 5 (回分)
+                follower.setMaxPower(1);
                 follower.followPath(path5_Score1, true);
                 setPathState(9);
                 break;
 
             case 9: // 等待 Path 5 完成 -> 发射 Cycle 1
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 1.2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
                         stopShooting();
                         setPathState(10);
                     }
@@ -312,17 +318,27 @@ public class Close3Blue extends OpMode {
 
             case 14: // 开始 Path 8 (回分 Cycle 2)
                 stopIntake();
+                follower.setMaxPower(0.5);
+                setPathState(55);
+                break;
+            case 55:
+                follower.followPath(Maneuver2,true);
                 follower.setMaxPower(1);
-                follower.followPath(path8_Score2, true);
-                SH.setVelocity(2500);
-                setPathState(15);
+                setPathState(56);
+                break;
+            case 56:
+                if (!follower.isBusy()) {
+                    sleep(700);
+                    follower.followPath(path8_Score2, true);
+                    SH.setVelocity(2500);
+                    setPathState(15);
+                }
                 break;
 
             case 15: // 等待 Path 8 完成 -> 发射 Cycle 2
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 1.2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 1.5) {
                         stopShooting();
                         setPathState(16);
                     }
@@ -344,7 +360,7 @@ public class Close3Blue extends OpMode {
 
             case 18: // 开始 Path 10 (吸取 3)
                 isMozartBraked = false;
-                follower.setMaxPower(0.7);
+                follower.setMaxPower(0.5);
                 follower.followPath(path10_Intake3, false);
                 setPathState(19);
                 break;
@@ -366,9 +382,8 @@ public class Close3Blue extends OpMode {
 
             case 21: // 等待 Path 11 完成 -> 发射 Cycle 3
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(2750);
-                    if (actionTimer.getElapsedTimeSeconds() > 1.2) {
+                    if (actionTimer.getElapsedTimeSeconds() > 2.3) {
                         stopShooting();
                         setPathState(22);
                     }
@@ -404,7 +419,7 @@ public class Close3Blue extends OpMode {
 
         double currentRPM = getShooterRPM();
 
-        if (Math.abs(currentRPM - targetRPM) <= 100) {
+        if (Math.abs(currentRPM - targetRPM) <= 200) {
             MOZART.setPower(1.0);
             Hold.setPower(-1.0);
             ClassifyServo.setPower(1.0);

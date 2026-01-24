@@ -20,7 +20,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "远点 一排 蓝方", group = "PedroPathing")
+@Autonomous(name = "远点 一排 蓝方", group = "A")
 public class Far1Blue extends OpMode {
 
     private Follower follower;
@@ -108,13 +108,13 @@ public class Far1Blue extends OpMode {
         // Path 9: 回分 (Cycle 2 - 对应复杂的嘬一口序列)
         // 这一段需要把 Path 8 的终点连回发射点
         path9_Score2 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(10.7, 9), new Pose(32.300, 14.000), new Pose(57.800, 14.250)))
+                .addPath(new BezierCurve(new Pose(10.7, 9), new Pose(32.300, 16.000), new Pose(57.800, 14.250)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-69))
                 .build();
 
         // Path 10: 停车/结束
         path10_Park = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(57.800, 14.250), new Pose(28.280, 13.540), new Pose(21.380, 9.980)))
+                .addPath(new BezierCurve(new Pose(57.800, 14.250), new Pose(28.280, 16.0), new Pose(21.380, 9.980)))
                 .setLinearHeadingInterpolation(Math.toRadians(-69), Math.toRadians(180))
                 .build();
     }
@@ -193,9 +193,8 @@ public class Far1Blue extends OpMode {
 
             case 1: // Wait for Path 1 -> Shoot Preload
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 3.3) { // 发射 2秒
+                    if (actionTimer.getElapsedTimeSeconds() > 3.5) { // 发射 2秒
                         stopShooting();
                         setPathState(2);
                     }
@@ -240,9 +239,8 @@ public class Far1Blue extends OpMode {
 
             case 7: // Wait for Path 4 -> Shoot Cycle 1
                 if (!follower.isBusy()) {
-                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 3.3) {
+                    if (actionTimer.getElapsedTimeSeconds() > 3.5) {
                         stopShooting();
                         setPathState(8);
                     }
@@ -275,7 +273,7 @@ public class Far1Blue extends OpMode {
                 break;
 
             case 12: // Path 7: Sip 3
-                follower.followPath(path7_Sip3, false);
+                follower.followPath(path7_Sip3, true);
                 setPathState(13);
                 break;
 
@@ -307,9 +305,8 @@ public class Far1Blue extends OpMode {
             case 17: // Wait for Path 9 -> Shoot Cycle 2
                 if (!follower.isBusy()) {
                     stopIntake();
-                    sleep(150);
                     runShooterLogic(FAR_SHOT_RPM);
-                    if (actionTimer.getElapsedTimeSeconds() > 3.3) {
+                    if (actionTimer.getElapsedTimeSeconds() > 3.5) {
                         stopShooting();
                         setPathState(18);
                     }
@@ -346,9 +343,8 @@ public class Far1Blue extends OpMode {
     private void runShooterLogic(double targetRPM) {
         SH.setVelocity(calculateTicks(targetRPM));
         double currentRPM = getShooterRPM();
-
-        if (Math.abs(currentRPM - targetRPM) <= 150) {
-            MOZART.setPower(1.0);
+        if (Math.abs(currentRPM - targetRPM) <= 50) {
+            MOZART.setPower(1);
             Hold.setPower(-1.0);
             ClassifyServo.setPower(1.0);
             washer.setPower(1);
