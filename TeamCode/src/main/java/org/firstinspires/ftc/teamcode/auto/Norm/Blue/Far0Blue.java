@@ -18,7 +18,6 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit; // 新增
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-
 @Autonomous(name = "远点 不吸 蓝方", group = "A")
 public class Far0Blue extends OpMode {
 
