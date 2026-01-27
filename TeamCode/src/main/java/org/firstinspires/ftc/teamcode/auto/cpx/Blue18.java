@@ -15,18 +15,19 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
+import org.firstinspires.ftc.teamcode.drive.LedModuleDriver;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Final: 13段路径全动作自动程序", group = "Main")
+@Autonomous(name = "13段路径全动作自动程序", group = "Main")
 public class Blue18 extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, cycleTimer, actionTimer;
     private int pathState = 0;
 
-    private final double FirstShootingPower = 2800.0;
-    private final double NormalShootingPower = 2400.0;
+    private final double FirstShootingPower = 2700.0;
+    private final double NormalShootingPower = 2500.0;
+    private final double IdleShootingPower = 1500.0;
 
     private DcMotorEx SH, HS, Intake, Mozart;
     private CRServo Hold;
@@ -34,10 +35,47 @@ public class Blue18 extends OpMode {
     private Servo servoLP = null;
     private DigitalChannel juju;
 
+    private Servo lightLeft, lightRight;
+
+    private enum LightState { IDLE, TRANSITIONING, ANIMATING }
+    private LightState currentLightState = LightState.IDLE;
+    private ElapsedTime lightTimer = new ElapsedTime();
+
+    LedModuleDriver led;
+    final char ID = 'A';
+
+    private final int HEX_CYAN    = 0x00FFFF;
+    private final int HEX_MAGENTA = 0xFF00FF;
+    private final int HEX_GOLD    = 0xFFD700;
+    private final int HEX_ORANGE  = 0xFF4500;
+    private final int HEX_GREEN   = 0x00FF00;
+    private final int HEX_WHITE   = 0xFFFFFF;
+    private final int HEX_RED     = 0xFF0000;
+
+    private String lastLedState = "";
+
+    private double animationMin = 0.0, animationMax = 0.0, animationDurationSec = 1.0;
+    private boolean isFadingUp = true;
+
+    private double transitionFromPos = 0.0, transitionToPos = 0.0, targetMin = 0.0, targetMax = 0.0;
+    private static final double TRANSITION_DURATION_SEC = 0.5;
+
+    private static final double C_OFF = 0.1;
+    private static final double C_RED = 0.279;
+    private static final double C_ORANGE = 0.333;
+    private static final double C_YELLOW = 0.388;
+    private static final double C_SAGE = 0.444;
+    private static final double C_GREEN = 0.500;
+    private static final double C_Azure = 0.555;
+    private static final double C_BLUE = 0.611;
+    private static final double C_Indigo = 0.666;
+    private static final double C_VIOLET = 0.722;
+    private static final double C_WHITE = 0.8;
+
     private ElapsedTime shooterPidTimer = new ElapsedTime();
     private double targetShooterRPM = 0;
     private double shooterLastError = 0;
-    private static final double SHOOTER_P = 0.006, SHOOTER_F = 0.0004, SHOOTER_D = 0.00001, TICKS_PER_REV = 28.0;
+    private static final double SHOOTER_P = 0.0065, SHOOTER_F = 0.0004, SHOOTER_D = 0.00001, TICKS_PER_REV = 28.0;
 
     private boolean isIntakeActive = false;
     private boolean hasCaughtObject = false;
@@ -66,35 +104,125 @@ public class Blue18 extends OpMode {
         Intake = hardwareMap.get(DcMotorEx.class, "Intake");
         Mozart = hardwareMap.get(DcMotorEx.class, "MOZART");
         Hold = hardwareMap.get(CRServo.class, "Hold");
-        juju = hardwareMap.get(DigitalChannel.class, "juju");
+        juju = hardwareMap.get(DigitalChannel.class, "bigjuju");
         servoRP = hardwareMap.get(Servo.class, "RP");
         servoLP = hardwareMap.get(Servo.class, "LP");
+
+        lightLeft = hardwareMap.get(Servo.class, "lightLeft");
+        lightRight = hardwareMap.get(Servo.class, "lightRight");
+
+        led = hardwareMap.get(LedModuleDriver.class, "leddd");
+        led.assignId(ID);
+        led.setWaveMode(ID, 0x00008B, 0x8A2BE2, 80);
+
         juju.setMode(DigitalChannel.Mode.INPUT);
         Mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         Intake.setDirection(DcMotorSimple.Direction.REVERSE);
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
-        servoLP.setPosition(0.60);
-        servoRP.setPosition(0.325);
+        servoLP.setPosition(0.70);
+        servoRP.setPosition(0.225);
+
+
         buildPaths();
     }
 
     @Override
-    public void start() { setPathState(0); }
+    public void start() {
+        setPathState(0);
+        setLightAnimation(C_BLUE, C_Indigo, 1.5);
+    }
 
     @Override
     public void loop() {
         updateShooterPID();
-        if (isShootingTaskActive) runShootingSequence(); else updateIntakeLogic();
+
+        if (isShootingTaskActive) {
+            runShootingSequence();
+        } else {
+            updateIntakeLogic();
+        }
 
         follower.update();
         autonomousPathUpdate();
+        updateLights();
+        updateSmartLed();
 
         telemetry.addData("State", pathState);
         telemetry.addData("Actual RPM", getShooterRPM());
         telemetry.addData("Loop Time", cycleTimer.getElapsedTimeSeconds());
+        telemetry.addData("LED State", lastLedState);
         telemetry.update();
+    }
+
+    private void updateSmartLed() {
+        String reqState = "";
+        if (isShootingTaskActive) {
+            reqState = "SHOOT";
+            if (!reqState.equals(lastLedState)) lastLedState = reqState;
+            return;
+        }
+        if (targetShooterRPM > 1000) {
+            reqState = "FLYWHEEL";
+            if (!reqState.equals(lastLedState)) lastLedState = reqState;
+        }
+        if (isIntakeActive) {
+            if (hasCaughtObject) {
+                reqState = "CAUGHT";
+                if (!reqState.equals(lastLedState)) lastLedState = reqState;
+            } else {
+                reqState = "INTAKING";
+                if (!reqState.equals(lastLedState)) lastLedState = reqState;
+            }
+            return;
+        }
+        if (reqState.isEmpty()) {
+            reqState = "CRUISE";
+            if (!reqState.equals(lastLedState)) lastLedState = reqState;
+        }
+    }
+
+    public void setLightAnimation(double min, double max, double durationSec) {
+        if (targetMin == min && targetMax == max && Math.abs(animationDurationSec - durationSec) < 0.01) return;
+        this.targetMin = min;
+        this.targetMax = max;
+        this.animationDurationSec = durationSec;
+        this.transitionFromPos = lightLeft.getPosition();
+        this.transitionToPos = this.targetMin;
+        this.currentLightState = LightState.TRANSITIONING;
+        this.lightTimer.reset();
+    }
+
+    public void updateLights() {
+        double currentPosition = lightLeft.getPosition();
+        double elapsedTime = lightTimer.seconds();
+        switch (currentLightState) {
+            case IDLE: break;
+            case TRANSITIONING:
+                double transitionProgress = Math.min(elapsedTime / TRANSITION_DURATION_SEC, 1.0);
+                currentPosition = transitionFromPos + (transitionToPos - transitionFromPos) * transitionProgress;
+                if (transitionProgress >= 1.0) {
+                    currentPosition = transitionToPos;
+                    animationMin = targetMin;
+                    animationMax = targetMax;
+                    isFadingUp = true;
+                    currentLightState = LightState.ANIMATING;
+                    lightTimer.reset();
+                }
+                break;
+            case ANIMATING:
+                double animationProgress = Math.min(elapsedTime / animationDurationSec, 1.0);
+                if (isFadingUp) currentPosition = animationMin + (animationMax - animationMin) * animationProgress;
+                else currentPosition = animationMax - (animationMax - animationMin) * animationProgress;
+                if (animationProgress >= 1.0) {
+                    isFadingUp = !isFadingUp;
+                    lightTimer.reset();
+                }
+                break;
+        }
+        lightLeft.setPosition(currentPosition);
+        lightRight.setPosition(currentPosition);
     }
 
     public void autonomousPathUpdate() {
@@ -106,21 +234,33 @@ public class Blue18 extends OpMode {
                 break;
 
             case 1:
-                if (!follower.isBusy()) {
+                if (pathTimer.getElapsedTimeSeconds() > 0.45) {
+                    setLightAnimation(C_RED, C_ORANGE, 0.5);
                     shooting(500, false);
-                    setPathState(1145);
-                }
-                break;
-
-            case 1145:
-                if (!isShootingTaskActive) {
-                    follower.followPath(Path2, true);
+                    servoLP.setPosition(0.60);
+                    servoRP.setPosition(0.325);
+                    hasCaughtObject = false;
                     setPathState(2);
                 }
                 break;
 
             case 2:
                 if (!follower.isBusy()) {
+                    setPathState(1145);
+                }
+                break;
+
+            case 1145:
+                if (!isShootingTaskActive) {
+                    targetShooterRPM = IdleShootingPower;
+                    setLightAnimation(C_SAGE, C_GREEN, 1);
+                    follower.followPath(Path2, false);
+                    setPathState(300); // 建议修改原本的 case 2 编号，避免冲突
+                }
+                break;
+            case 300:
+                if (!follower.isBusy()) {
+                    setLightAnimation(C_Azure, C_VIOLET, 2);
                     setIntake(true);
                     servoLP.setPosition(0.30);
                     servoRP.setPosition(0.625);
@@ -128,43 +268,46 @@ public class Blue18 extends OpMode {
                     setPathState(3);
                 }
                 break;
-
             case 3:
                 if (!follower.isBusy()) {
                     targetShooterRPM = NormalShootingPower;
+                    setLightAnimation(C_BLUE, C_Indigo, 1.5);
                     follower.followPath(Path4, true);
                     setPathState(4);
                 }
                 break;
-
             case 4:
                 if (!follower.isBusy()) {
+                    setLightAnimation(C_RED, C_ORANGE, 0.5);
                     shooting(500, false);
+                    hasCaughtObject = false;
                     setPathState(49);
                 }
                 break;
-
             case 49:
                 if (!isShootingTaskActive) {
+                    setLightAnimation(C_ORANGE, C_SAGE, 0.5);
                     cycleTimer.resetTimer();
                     setPathState(50);
                 }
                 break;
-
             case 50:
                 if (cycleTimer.getElapsedTimeSeconds() >= 10.0) {
                     setIntake(false);
+                    targetShooterRPM = IdleShootingPower;
                     setPathState(7);
                 } else {
+                    targetShooterRPM = IdleShootingPower;
+                    hasCaughtObject = false;
                     setIntake(true);
-                    follower.followPath(Path5, false);
+                    follower.followPath(Path5, true);
                     setPathState(51);
                 }
                 break;
-
             case 51:
                 if (!follower.isBusy()) {
-                    if (actionTimer.getElapsedTimeSeconds() > 2.0) {
+                    if (actionTimer.getElapsedTimeSeconds() > 2) {
+                        targetShooterRPM = NormalShootingPower;
                         follower.followPath(Path6, true);
                         setPathState(52);
                     }
@@ -172,23 +315,21 @@ public class Blue18 extends OpMode {
                     actionTimer.resetTimer();
                 }
                 break;
-
             case 52:
                 if (!follower.isBusy()) {
                     shooting(500, false);
+                    hasCaughtObject = false;
                     setPathState(53);
                 }
                 break;
-
             case 53:
                 if (!isShootingTaskActive) setPathState(50);
                 break;
-
             case 7:
-                follower.followPath(Path7, true);
+                setLightAnimation(C_Azure, C_VIOLET, 2);
+                follower.followPath(Path7, false);
                 setPathState(8);
                 break;
-
             case 8:
                 if (!follower.isBusy()) {
                     setIntake(true);
@@ -196,29 +337,30 @@ public class Blue18 extends OpMode {
                     setPathState(9);
                 }
                 break;
-
             case 9:
                 if (!follower.isBusy()) {
                     targetShooterRPM = NormalShootingPower;
+                    setLightAnimation(C_BLUE, C_Indigo, 1.5);
                     follower.followPath(Path9, true);
                     setPathState(10);
                 }
                 break;
-
             case 10:
                 if (!follower.isBusy()) {
+                    setLightAnimation(C_RED, C_ORANGE, 0.5);
                     shooting(500, false);
+                    hasCaughtObject = false;
                     setPathState(101);
                 }
                 break;
-
             case 101:
                 if (!isShootingTaskActive) {
-                    follower.followPath(Path10, true);
+                    targetShooterRPM = IdleShootingPower;
+                    setLightAnimation(C_Azure, C_VIOLET, 2);
+                    follower.followPath(Path10, false);
                     setPathState(11);
                 }
                 break;
-
             case 11:
                 if (!follower.isBusy()) {
                     setIntake(true);
@@ -226,32 +368,33 @@ public class Blue18 extends OpMode {
                     setPathState(12);
                 }
                 break;
-
             case 12:
                 if (!follower.isBusy()) {
                     targetShooterRPM = NormalShootingPower;
+                    setLightAnimation(C_BLUE, C_Indigo, 1.5);
                     follower.followPath(Path12, true);
                     setPathState(13);
                 }
                 break;
-
             case 13:
                 if (!follower.isBusy()) {
+                    setLightAnimation(C_RED, C_ORANGE, 0.5);
                     shooting(500, false);
+                    hasCaughtObject = false;
                     setPathState(131);
                 }
                 break;
-
             case 131:
                 if (!isShootingTaskActive) {
                     setIntake(false);
                     targetShooterRPM = 0;
+                    setLightAnimation(C_RED, C_VIOLET, 0.8);
                     follower.followPath(Path13, true);
                     setPathState(14);
                 }
                 break;
-
             case 14:
+                led.turnOff(ID);
                 if (!follower.isBusy()) setPathState(-1);
                 break;
         }
@@ -273,7 +416,7 @@ public class Blue18 extends OpMode {
 
     private void runShootingSequence() {
         if (shootActionTimer.seconds() < shootTimeLimitSec) {
-            Intake.setPower(1.0); Mozart.setPower(0.8); Hold.setPower(1.0);
+            Intake.setPower(1.0); Mozart.setPower(1); Hold.setPower(1.0);
         } else {
             isShootingTaskActive = false;
             Intake.setPower(0); Mozart.setPower(0); Hold.setPower(0);
@@ -284,6 +427,9 @@ public class Blue18 extends OpMode {
     public void setIntake(boolean active) {
         if (active && !isIntakeActive) hasCaughtObject = false;
         isIntakeActive = active;
+        if (active) {
+            hasCaughtObject = false; // 强制重置
+        }
     }
 
     private void updateIntakeLogic() {
@@ -313,18 +459,18 @@ public class Blue18 extends OpMode {
     private double getShooterRPM() { return (SH.getVelocity() * 60.0) / TICKS_PER_REV; }
 
     public void buildPaths() {
-        Path1 = follower.pathBuilder().addPath(new BezierLine(new Pose(27.495, 132.350), new Pose(58.951, 93.204))).setLinearHeadingInterpolation(Math.toRadians(-36), Math.toRadians(-45)).build();
-        Path2 = follower.pathBuilder().addPath(new BezierLine(new Pose(58.951, 93.204), new Pose(44.505, 63.5))).setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180)).build();
-        Path3 = follower.pathBuilder().addPath(new BezierLine(new Pose(44.505, 63.5), new Pose(12.500, 63.5))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180)).build();
-        Path4 = follower.pathBuilder().addPath(new BezierCurve(new Pose(12.500, 63.5), new Pose(41.942, 45), new Pose(60, 84))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48)).build();
-        Path5 = follower.pathBuilder().addPath(new BezierCurve(new Pose(60, 84), new Pose(43, 15), new Pose(7, 62.5))).setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(150)).build();
-        Path6 = follower.pathBuilder().addPath(new BezierCurve(new Pose(7.5, 62.5), new Pose(41.942, 45), new Pose(60, 84))).setLinearHeadingInterpolation(Math.toRadians(150), Math.toRadians(-48)).build();
-        Path7 = follower.pathBuilder().addPath(new BezierLine(new Pose(60, 84), new Pose(46.602, 85))).setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180)).build();
-        Path8 = follower.pathBuilder().addPath(new BezierLine(new Pose(46.602, 85), new Pose(22.000, 85))).setTangentHeadingInterpolation().build();
-        Path9 = follower.pathBuilder().addPath(new BezierLine(new Pose(22.000, 85), new Pose(60, 84))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48)).build();
-        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(60, 84), new Pose(43.107, 38))).setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180)).build();
-        Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(43.107, 38), new Pose(12.500, 38))).setTangentHeadingInterpolation().build();
-        Path12 = follower.pathBuilder().addPath(new BezierLine(new Pose(12.500, 38), new Pose(60, 84))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-48)).build();
-        Path13 = follower.pathBuilder().addPath(new BezierLine(new Pose(60, 84), new Pose(57.553, 56.388))).setLinearHeadingInterpolation(Math.toRadians(-48), Math.toRadians(180)).build();
+        Path1 = follower.pathBuilder().addPath(new BezierLine(new Pose(27.495, 132.350), new Pose(58.951, 93.204))).setLinearHeadingInterpolation(Math.toRadians(-36), Math.toRadians(-40)).build();
+        Path2 = follower.pathBuilder().addPath(new BezierLine(new Pose(58.951, 93.204), new Pose(44.505, 66))).setLinearHeadingInterpolation(Math.toRadians(-40), Math.toRadians(180)).build();
+        Path3 = follower.pathBuilder().addPath(new BezierLine(new Pose(44.505, 66), new Pose(12.500, 66))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180)).build();
+        Path4 = follower.pathBuilder().addPath(new BezierCurve(new Pose(12.500, 66), new Pose(52, 90))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-55)).build();
+        Path5 = follower.pathBuilder().addPath(new BezierCurve(new Pose(52, 90),new Pose(25, 20), new Pose(10, 67.5))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(155)).build();
+        Path6 = follower.pathBuilder().addPath(new BezierCurve(new Pose(10, 67.5),new Pose(65, 35), new Pose(52, 90))).setLinearHeadingInterpolation(Math.toRadians(155), Math.toRadians(-55)).build();
+        Path7 = follower.pathBuilder().addPath(new BezierLine(new Pose(52, 90), new Pose(46.602, 90))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(180)).build();
+        Path8 = follower.pathBuilder().addPath(new BezierLine(new Pose(46.602, 90), new Pose(22.000, 90))).setTangentHeadingInterpolation().build();
+        Path9 = follower.pathBuilder().addPath(new BezierLine(new Pose(22.000, 88), new Pose(52, 90))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-55)).build();
+        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(52, 90), new Pose(43.107, 44))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(180)).build();
+        Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(43.107, 44), new Pose(12.500, 44))).setTangentHeadingInterpolation().build();
+        Path12 = follower.pathBuilder().addPath(new BezierLine(new Pose(12.500, 44), new Pose(52, 90))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-55)).build();
+        Path13 = follower.pathBuilder().addPath(new BezierLine(new Pose(52, 90), new Pose(57.553, 56.388))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(180)).build();
     }
 }

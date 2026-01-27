@@ -40,6 +40,30 @@ public class FarAutoCycle extends OpMode {
     private CRServo Hold;
     private Servo servoRP = null, servoLP = null;
     private DigitalChannel juju;
+    private Servo lightLeft, lightRight;
+
+    private enum LightState { IDLE, TRANSITIONING, ANIMATING }
+    private FarAutoCycle.LightState currentLightState = FarAutoCycle.LightState.IDLE;
+    private ElapsedTime lightTimer = new ElapsedTime();
+
+    private double animationMin = 0.0, animationMax = 0.0, animationDurationSec = 1.0;
+    private boolean isFadingUp = true;
+
+    private double transitionFromPos = 0.0, transitionToPos = 0.0, targetMin = 0.0, targetMax = 0.0;
+    private static final double TRANSITION_DURATION_SEC = 0.5;
+
+    private static final double C_OFF = 0.1;
+    private static final double C_RED = 0.279;
+    private static final double C_ORANGE = 0.333;
+    private static final double C_YELLOW = 0.388;
+    private static final double C_SAGE = 0.444;
+    private static final double C_GREEN = 0.500;
+    private static final double C_Azure = 0.555;
+    private static final double C_BLUE = 0.611;
+    private static final double C_Indigo = 0.666;
+    private static final double C_VIOLET = 0.722;
+    private static final double C_WHITE = 0.8;
+
 
     // --- 飞轮 PID 变量 ---
     private ElapsedTime shooterPidTimer = new ElapsedTime();
@@ -79,6 +103,9 @@ public class FarAutoCycle extends OpMode {
         servoRP = hardwareMap.get(Servo.class, "RP");
         servoLP = hardwareMap.get(Servo.class, "LP");
 
+        lightLeft = hardwareMap.get(Servo.class, "lightLeft");
+        lightRight = hardwareMap.get(Servo.class, "lightRight");
+
         juju.setMode(DigitalChannel.Mode.INPUT);
         Mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         Intake.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -91,7 +118,11 @@ public class FarAutoCycle extends OpMode {
     }
 
     @Override
-    public void start() { setPathState(0); }
+    public void start() {
+        setPathState(0);
+        // 初始状态：蓝色呼吸灯 (Blue Alliance)
+        setLightAnimation(C_BLUE, C_Indigo, 1.5);
+    }
 
     @Override
     public void loop() {
@@ -101,28 +132,88 @@ public class FarAutoCycle extends OpMode {
 
         follower.update();
         autonomousPathUpdate();
-
+        updateLights();
         telemetry.addData("State", pathState);
         telemetry.addData("Current RPM", "%.0f", getShooterRPM());
         telemetry.addData("Mozart Status", isShootingTaskActive ? (Math.abs(getShooterRPM() - targetShooterRPM) <= RPM_TOLERANCE ? "FIRING" : "WAITING") : "IDLE");
         telemetry.update();
     }
+    public void setLightAnimation(double min, double max, double durationSec) {
+        if (targetMin == min && targetMax == max && Math.abs(animationDurationSec - durationSec) < 0.01) {
+            return;
+        }
+
+        this.targetMin = min;
+        this.targetMax = max;
+        this.animationDurationSec = durationSec;
+
+        this.transitionFromPos = lightLeft.getPosition();
+        this.transitionToPos = this.targetMin;
+
+        this.currentLightState = FarAutoCycle.LightState.TRANSITIONING;
+        this.lightTimer.reset();
+    }
+
+    public void updateLights() {
+        double currentPosition = lightLeft.getPosition();
+        double elapsedTime = lightTimer.seconds();
+
+        switch (currentLightState) {
+            case IDLE:
+                break;
+
+            case TRANSITIONING:
+                double transitionProgress = Math.min(elapsedTime / TRANSITION_DURATION_SEC, 1.0);
+                currentPosition = transitionFromPos + (transitionToPos - transitionFromPos) * transitionProgress;
+
+                if (transitionProgress >= 1.0) {
+                    currentPosition = transitionToPos;
+                    animationMin = targetMin;
+                    animationMax = targetMax;
+                    isFadingUp = true;
+                    currentLightState = FarAutoCycle.LightState.ANIMATING;
+                    lightTimer.reset();
+                }
+                break;
+
+            case ANIMATING:
+                double animationProgress = Math.min(elapsedTime / animationDurationSec, 1.0);
+
+                if (isFadingUp) {
+                    currentPosition = animationMin + (animationMax - animationMin) * animationProgress;
+                } else {
+                    currentPosition = animationMax - (animationMax - animationMin) * animationProgress;
+                }
+
+                if (animationProgress >= 1.0) {
+                    isFadingUp = !isFadingUp;
+                    lightTimer.reset();
+                }
+                break;
+        }
+
+        lightLeft.setPosition(currentPosition);
+        lightRight.setPosition(currentPosition);
+    }
 
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
+                setLightAnimation(C_BLUE, C_Indigo, 1.5);
                 targetShooterRPM = FarShootingRPM;
                 follower.followPath(Path1, true);
                 setPathState(1);
                 break;
             case 1:
                 if (!follower.isBusy()) {
+                    setLightAnimation(C_RED,C_ORANGE,0.5);
                     shooting(1000, true); // 发射 1s
                     setPathState(2);
                 }
                 break;
             case 2:
                 if (!isShootingTaskActive) {
+                    setLightAnimation(C_ORANGE,C_SAGE,0.5);
                     targetShooterRPM = IdleRPM;
                     loopCount = 0;
                     setPathState(10);
@@ -138,6 +229,7 @@ public class FarAutoCycle extends OpMode {
                 break;
             case 11:
                 if (!follower.isBusy()) {
+                    setLightAnimation(C_Azure,C_VIOLET,2);
                     setIntake(true);
                     follower.followPath(Path3, false);
                     setPathState(12);
@@ -146,6 +238,7 @@ public class FarAutoCycle extends OpMode {
             case 12:
                 if (!follower.isBusy()) {
                     if (actionTimer.getElapsedTimeSeconds() > 1.0) {
+                        setLightAnimation(C_BLUE, C_Indigo, 1.5);
                         targetShooterRPM = FarShootingRPM;
                         follower.followPath(Path4, true);
                         setPathState(13);
@@ -156,12 +249,14 @@ public class FarAutoCycle extends OpMode {
                 break;
             case 13:
                 if (!follower.isBusy()) {
+                    setLightAnimation(C_RED,C_ORANGE,0.5);
                     shooting(1000, true);
                     setPathState(14);
                 }
                 break;
             case 14:
                 if (!isShootingTaskActive) {
+                    setLightAnimation(C_ORANGE,C_SAGE,0.5);
                     targetShooterRPM = IdleRPM;
                     setIntake(false);
                     loopCount++;
@@ -170,6 +265,7 @@ public class FarAutoCycle extends OpMode {
                 break;
             case 20:
                 targetShooterRPM = 0;
+                setLightAnimation(C_RED,C_VIOLET,0.8);
                 follower.followPath(Path5, true);
                 setPathState(21);
                 break;
