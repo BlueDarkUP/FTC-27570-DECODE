@@ -1,103 +1,123 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.config.Config;
-import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
-import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose;
+import org.firstinspires.ftc.teamcode.pedroPathing.ConstantsFar;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
-// @Config 注解让FTC Dashboard可以识别并修改这个类中的 public static 变量
-@Config
-@TeleOp(name = "Motor PIDF Tuner (Dashboard)", group = "Tuning")
-public class ttt extends LinearOpMode {
+/**
+ * 简单的 Pedro Pathing 手动控制程序
+ * Left Stick: 移动
+ * Right Stick: 手动旋转 (会覆盖自动朝向)
+ * Left Bumper: 重置 IMU (归零)
+ * Right Bumper: 切换朝向 (0度 <-> -114度)
+ */
+@TeleOp(name = "Simple Direction Control", group = "Pedro Pathing")
+public class ttt extends OpMode {
 
-    // 定义电机对象
-    private DcMotorEx motor;
+    private Follower follower;
 
-    // FtcDashboard 实例
-    private FtcDashboard dashboard;
+    // 朝向控制变量
+    private double targetHeading = 0; // 目标朝向（弧度）
+    private boolean isAngleActive = false; // 用于切换状态的标志位
+    private boolean previousRightBumper = false; // 记录上一帧按键状态
 
-    // *****************************************************************************************
-    //                                  用户需要修改/调试的常量
-    // *****************************************************************************************
-
-    // 在这里输入你从电机规格中查到的每转编码器刻度数
-    public static final double MOTOR_TICK_COUNT = 28; // 例如, goBILDA 5203系列 19.2:1 电机
-
-    // 你的目标RPM - 现在可以通过Dashboard实时修改！
-    public static double TARGET_RPM = 2000;
-
-    // PIDF 系数 - 现在可以通过Dashboard实时修改！
-    // P, I, D, F 必须是独立的 public static 变量才能被Dashboard识别
-    public static double P = 0, I = 0, D = 0;
-    public static double F = 0;
-
-
-    // *****************************************************************************************
+    // PID 参数 (简单的 P 控制器，用于调整旋转力度)
+    private final double TURN_P = 0.6;
 
     @Override
-    public void runOpMode() throws InterruptedException {
-        // 初始化 FTC Dashboard
-        dashboard = FtcDashboard.getInstance();
+    public void init() {
+        // 初始化 Follower
+        follower = ConstantsFar.createFollower(hardwareMap);
+        follower.setStartingPose(new Pose(0, 0, 0));
+    }
 
-        // 使用 MultipleTelemetry 可以同时将数据显示在手机屏幕和Dashboard上
-        telemetry = new MultipleTelemetry(telemetry, dashboard.getTelemetry());
+    @Override
+    public void start() {
+        // 开启 TeleOp 驱动模式，false 表示不强制使用默认的驱动逻辑，我们将手动传入参数
+        follower.startTeleopDrive();
+    }
 
-        // 从硬件映射中获取电机
-        motor = hardwareMap.get(DcMotorEx.class, "Shooter");
-        motor.setDirection(DcMotor.Direction.REVERSE);
-        motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+    @Override
+    public void loop() {
+        /* ------------------------------------
+         * 1. 逻辑控制部分
+         * ------------------------------------ */
 
-        telemetry.addLine("准备开始...");
-        telemetry.addLine("连接到FTC Dashboard，并打开浏览器访问 http://192.168.43.1:8080/dash");
-        telemetry.update();
-
-        waitForStart();
-
-        if (opModeIsActive()) {
-
-            while (opModeIsActive()) {
-                // 从Dashboard实时更新PIDF系数
-                PIDFCoefficients pidfCoefficients = new PIDFCoefficients(P, I, D, F);
-                motor.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pidfCoefficients);
-
-                // 将目标RPM转换为每秒的编码器刻度数
-                double targetTicksPerSecond = TARGET_RPM * MOTOR_TICK_COUNT / 60;
-
-                // 设置电机的目标速度
-                motor.setVelocity(targetTicksPerSecond);
-
-                // 获取当前电机的速度（单位：刻度/秒）
-                double currentVelocityTicks = motor.getVelocity();
-
-                // 将当前速度从 刻度/秒 转换为 RPM
-                double currentRPM = (currentVelocityTicks / MOTOR_TICK_COUNT) * 60;
-
-                // 创建一个数据包，用于发送到Dashboard
-                TelemetryPacket packet = new TelemetryPacket();
-
-                // 将你需要绘制图表的数据放入数据包
-                // packet.put(key, value)
-                packet.put("目标 RPM", TARGET_RPM);
-                packet.put("当前 RPM", currentRPM);
-                packet.put("误差 (RPM)", TARGET_RPM - currentRPM);
-
-                // 发送数据包到Dashboard
-                dashboard.sendTelemetryPacket(packet);
-
-                // 同时在手机屏幕上显示简单数据
-                telemetry.addData("目标 RPM", TARGET_RPM);
-                telemetry.addData("当前 RPM", "%.2f", currentRPM);
-                telemetry.update();
-            }
+        // Left Bumper: 归零 IMU
+        if (gamepad1.left_bumper) {
+            // 保持当前的 X 和 Y，但将 Heading 强制设为 0
+            follower.setPose(new Pose(follower.getPose().getX(), follower.getPose().getY(), 0));
+            targetHeading = 0; // 重置目标也为0
+            isAngleActive = false;
         }
 
-        // 停止电机
-        motor.setPower(0);
+        // Right Bumper: 切换 0度 和 -114度
+        if (gamepad1.right_bumper && !previousRightBumper) {
+            isAngleActive = !isAngleActive; // 切换状态
+
+            if (isAngleActive) {
+                // 切换到 -114 度 (转为弧度)
+                targetHeading = Math.toRadians(-114);
+            } else {
+                // 切换到 0 度
+                targetHeading = 0;
+            }
+        }
+        previousRightBumper = gamepad1.right_bumper;
+
+        /* ------------------------------------
+         * 2. 驱动计算部分
+         * ------------------------------------ */
+
+        double driveX = -gamepad1.left_stick_y; // 前后
+        double driveY = -gamepad1.left_stick_x; // 左右
+        double turnPower;
+
+        // 如果手动推动右摇杆，优先使用手动旋转
+        if (Math.abs(gamepad1.right_stick_x) > 0.05) {
+            turnPower = -gamepad1.right_stick_x;
+            // 更新目标朝向为当前朝向，防止松手后回弹
+            targetHeading = follower.getPose().getHeading();
+        } else {
+            // 如果没动右摇杆，使用 P 控制器自动锁定目标角度
+            double currentHeading = follower.getPose().getHeading();
+
+            // 计算角度差 (确保走最短路径)
+            double error = getAngleDifference(targetHeading, currentHeading);
+
+            // 计算旋转力度
+            turnPower = error * TURN_P;
+
+            // 限制最大旋转速度（可选）
+            turnPower = Math.max(-1, Math.min(1, turnPower));
+        }
+
+        /* ------------------------------------
+         * 3. 发送指令给 Follower
+         * ------------------------------------ */
+
+        // 参数: x速度, y速度, 旋转速度, 是否为场地坐标系(true)
+        follower.setTeleOpDrive(driveX, driveY, turnPower, false);
+
+        // 必须调用 update 来刷新里程计
+        follower.update();
+
+        // Telemetry 显示调试信息
+        telemetry.addData("Target Angle (Deg)", Math.toDegrees(targetHeading));
+        telemetry.addData("Current Angle (Deg)", Math.toDegrees(follower.getPose().getHeading()));
+        telemetry.addData("Mode", isAngleActive ? "-114 Degrees" : "0 Degrees");
+        telemetry.update();
+    }
+
+    /**
+     * 辅助方法：计算两个角度之间的最小差值 (-PI 到 PI)
+     */
+    private double getAngleDifference(double target, double current) {
+        double difference = target - current;
+        while (difference < -Math.PI) difference += 2 * Math.PI;
+        while (difference > Math.PI) difference -= 2 * Math.PI;
+        return difference;
     }
 }

@@ -4,7 +4,6 @@ import com.pedropathing.control.FilteredPIDFCoefficients;
 import com.pedropathing.control.PIDFCoefficients;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.follower.FollowerConstants;
-
 import com.pedropathing.ftc.FollowerBuilder;
 import com.pedropathing.ftc.drivetrains.MecanumConstants;
 import com.pedropathing.ftc.localization.constants.PinpointConstants;
@@ -15,7 +14,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
-public class Constants {
+public class ConstantsFar {
     public static FollowerConstants followerConstants = new FollowerConstants()
             .mass(9.5)
             .forwardZeroPowerAcceleration(-40.7)
@@ -27,8 +26,8 @@ public class Constants {
             .translationalPIDFCoefficients(new PIDFCoefficients(0.027, 0, 0.002, 0.15))
             .secondaryTranslationalPIDFCoefficients(new PIDFCoefficients(0.03,0,0.0055,0))
 
-            .headingPIDFCoefficients(new PIDFCoefficients(1, 0.0001, 0.005, 0.1))
-            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.6,0,0.001,0.02))
+            .headingPIDFCoefficients(new PIDFCoefficients(0.35, 0.0001, 0.005, 0.1))
+            .secondaryHeadingPIDFCoefficients(new PIDFCoefficients(0.5,0,0.001,0.01))
 
             .drivePIDFCoefficients(new FilteredPIDFCoefficients(0.05,0.0,0.0005,0.6,0.08))
             .secondaryDrivePIDFCoefficients(new FilteredPIDFCoefficients(0.2,0,0.0001,0.6,0.0))

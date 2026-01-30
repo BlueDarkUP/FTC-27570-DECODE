@@ -19,7 +19,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
 @Autonomous(name = "Auto 2: 远点循环 (带转速门控发射)", group = "Main")
-public class FarAutoCycle extends OpMode {
+public class RedFarAutoCycle extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer;
@@ -28,8 +28,8 @@ public class FarAutoCycle extends OpMode {
 
     // --- 配置常量 ---
     private final double FarShootingRPM = 3400.0;
-    private final double IdleRPM = 2000.0;
-    private final double RPM_TOLERANCE = 70.0; // 理想射击范围区间 ±70
+    private final double IdleRPM = 1500.0;
+    private final double RPM_TOLERANCE = 300.0;
 
     // 平滑降速逻辑
     private double currentSlewRPM = 0;
@@ -43,7 +43,7 @@ public class FarAutoCycle extends OpMode {
     private Servo lightLeft, lightRight;
 
     private enum LightState { IDLE, TRANSITIONING, ANIMATING }
-    private FarAutoCycle.LightState currentLightState = FarAutoCycle.LightState.IDLE;
+    private RedFarAutoCycle.LightState currentLightState = RedFarAutoCycle.LightState.IDLE;
     private ElapsedTime lightTimer = new ElapsedTime();
 
     private double animationMin = 0.0, animationMax = 0.0, animationDurationSec = 1.0;
@@ -80,7 +80,7 @@ public class FarAutoCycle extends OpMode {
     private boolean isChassisPausedByShot = false;
 
     // --- 路径定义 ---
-    private final Pose startPose = new Pose(56.000, 8.000, Math.toRadians(-90));
+    private final Pose startPose = new Pose(88.000, 8.000, Math.toRadians(-90));
     private PathChain Path1, Path2, Path3, Path4, Path5;
 
     @Override
@@ -99,7 +99,7 @@ public class FarAutoCycle extends OpMode {
         Intake = hardwareMap.get(DcMotorEx.class, "Intake");
         Mozart = hardwareMap.get(DcMotorEx.class, "MOZART");
         Hold = hardwareMap.get(CRServo.class, "Hold");
-        juju = hardwareMap.get(DigitalChannel.class, "juju");
+        juju = hardwareMap.get(DigitalChannel.class, "bigjuju");
         servoRP = hardwareMap.get(Servo.class, "RP");
         servoLP = hardwareMap.get(Servo.class, "LP");
 
@@ -112,8 +112,8 @@ public class FarAutoCycle extends OpMode {
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startPose);
-        servoLP.setPosition(0.60);
-        servoRP.setPosition(0.325);
+        servoLP.setPosition(0.925);
+        servoRP.setPosition(0.03);
         buildPaths();
     }
 
@@ -150,7 +150,7 @@ public class FarAutoCycle extends OpMode {
         this.transitionFromPos = lightLeft.getPosition();
         this.transitionToPos = this.targetMin;
 
-        this.currentLightState = FarAutoCycle.LightState.TRANSITIONING;
+        this.currentLightState = RedFarAutoCycle.LightState.TRANSITIONING;
         this.lightTimer.reset();
     }
 
@@ -171,7 +171,7 @@ public class FarAutoCycle extends OpMode {
                     animationMin = targetMin;
                     animationMax = targetMax;
                     isFadingUp = true;
-                    currentLightState = FarAutoCycle.LightState.ANIMATING;
+                    currentLightState = RedFarAutoCycle.LightState.ANIMATING;
                     lightTimer.reset();
                 }
                 break;
@@ -207,7 +207,7 @@ public class FarAutoCycle extends OpMode {
             case 1:
                 if (!follower.isBusy()) {
                     setLightAnimation(C_RED,C_ORANGE,0.5);
-                    shooting(1000, true); // 发射 1s
+                    shooting(1000, false); // 发射 1s
                     setPathState(2);
                 }
                 break;
@@ -221,7 +221,7 @@ public class FarAutoCycle extends OpMode {
                 break;
             case 10:
                 if (loopCount < 3) {
-                    follower.followPath(Path2, true);
+                    follower.followPath(Path2, false);
                     setPathState(11);
                 } else {
                     setPathState(20);
@@ -231,6 +231,7 @@ public class FarAutoCycle extends OpMode {
                 if (!follower.isBusy()) {
                     setLightAnimation(C_Azure,C_VIOLET,2);
                     setIntake(true);
+                    follower.setMaxPower(0.7);
                     follower.followPath(Path3, false);
                     setPathState(12);
                 }
@@ -240,6 +241,7 @@ public class FarAutoCycle extends OpMode {
                     if (actionTimer.getElapsedTimeSeconds() > 1.0) {
                         setLightAnimation(C_BLUE, C_Indigo, 1.5);
                         targetShooterRPM = FarShootingRPM;
+                        follower.setMaxPower(1);
                         follower.followPath(Path4, true);
                         setPathState(13);
                     }
@@ -250,7 +252,7 @@ public class FarAutoCycle extends OpMode {
             case 13:
                 if (!follower.isBusy()) {
                     setLightAnimation(C_RED,C_ORANGE,0.5);
-                    shooting(1000, true);
+                    shooting(1000, false);
                     setPathState(14);
                 }
                 break;
@@ -349,11 +351,30 @@ public class FarAutoCycle extends OpMode {
     private double getShooterRPM() { return (SH.getVelocity() * 60.0) / TICKS_PER_REV; }
 
     public void buildPaths() {
-        Path1 = follower.pathBuilder().addPath(new BezierLine(new Pose(56.000, 8.000), new Pose(62.500, 14.000))).setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-65)).build(); //旧代码-69
-        Path2 = follower.pathBuilder().addPath(new BezierLine(new Pose(62.500, 14.000), new Pose(11.650, 22.000))).setLinearHeadingInterpolation(Math.toRadians(-65), Math.toRadians(-120)).build();
-        Path3 = follower.pathBuilder().addPath(new BezierLine(new Pose(11.650, 22.000), new Pose(8.400, 8.400))).setLinearHeadingInterpolation(Math.toRadians(-120), Math.toRadians(-90)).build();
-        Path4 = follower.pathBuilder().addPath(new BezierCurve(new Pose(8.400, 8.400), new Pose(34.000, 18.800), new Pose(62.500, 14.000))).setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-65)).build();
-        Path5 = follower.pathBuilder().addPath(new BezierCurve(new Pose(62.500, 14.000), new Pose(37.7, 18), new Pose(39.469, 8.490))).setLinearHeadingInterpolation(Math.toRadians(-65), Math.toRadians(-180)).build();
+        Path1 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(88.000, 8.000), new Pose(88.500, 14.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(245))
+                .build();
+
+        Path2 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(88.500, 14.000), new Pose(132.350, 22.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(245), Math.toRadians(300))
+                .build();
+
+        Path3 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(132.350, 22.000), new Pose(135.600, 8.400)))
+                .setLinearHeadingInterpolation(Math.toRadians(300), Math.toRadians(270))
+                .build();
+
+        Path4 = follower.pathBuilder()
+                .addPath(new BezierCurve(new Pose(135.600, 8.400), new Pose(80.000, 75), new Pose(81.500, 14.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(245))
+                .build();
+
+        Path5 = follower.pathBuilder()
+                .addPath(new BezierCurve(new Pose(81.500, 14.000), new Pose(120.300, 75.000), new Pose(130, 8.490)))
+                .setLinearHeadingInterpolation(Math.toRadians(245), Math.toRadians(0))
+                .build();
     }
 
     public void setPathState(int pState) {
