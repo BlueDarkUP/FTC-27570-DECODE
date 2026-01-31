@@ -6,24 +6,15 @@ import org.firstinspires.ftc.teamcode.pedroPathing.ConstantsFar;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-/**
- * 简单的 Pedro Pathing 手动控制程序
- * Left Stick: 移动
- * Right Stick: 手动旋转 (会覆盖自动朝向)
- * Left Bumper: 重置 IMU (归零)
- * Right Bumper: 切换朝向 (0度 <-> -114度)
- */
 @TeleOp(name = "Simple Direction Control", group = "Pedro Pathing")
 public class ttt extends OpMode {
 
     private Follower follower;
 
-    // 朝向控制变量
-    private double targetHeading = 0; // 目标朝向（弧度）
-    private boolean isAngleActive = false; // 用于切换状态的标志位
-    private boolean previousRightBumper = false; // 记录上一帧按键状态
+    private double targetHeading = 0;
+    private boolean isAngleActive = false;
+    private boolean previousRightBumper = false;
 
-    // PID 参数 (简单的 P 控制器，用于调整旋转力度)
     private final double TURN_P = 0.6;
 
     @Override
@@ -36,7 +27,7 @@ public class ttt extends OpMode {
     @Override
     public void start() {
         // 开启 TeleOp 驱动模式，false 表示不强制使用默认的驱动逻辑，我们将手动传入参数
-        follower.startTeleopDrive();
+        follower.startTeleopDrive(false);
     }
 
     @Override
@@ -90,7 +81,7 @@ public class ttt extends OpMode {
             // 计算旋转力度
             turnPower = error * TURN_P;
 
-            // 限制最大旋转速度（可选）
+            // 限制最大旋转速度（可选）v
             turnPower = Math.max(-1, Math.min(1, turnPower));
         }
 

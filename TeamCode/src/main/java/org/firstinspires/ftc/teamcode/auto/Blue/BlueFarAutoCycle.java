@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.cpx;
+package org.firstinspires.ftc.teamcode.auto.Blue; // 修改包名为 Blue
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -18,8 +18,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Auto 2: 远点循环 (带转速门控发射)", group = "Main")
-public class RedFarAutoCycle extends OpMode {
+@Autonomous(name = "Auto 2: 远点循环 (蓝方镜像)", group = "Main")
+public class BlueFarAutoCycle extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, actionTimer;
@@ -43,7 +43,7 @@ public class RedFarAutoCycle extends OpMode {
     private Servo lightLeft, lightRight;
 
     private enum LightState { IDLE, TRANSITIONING, ANIMATING }
-    private RedFarAutoCycle.LightState currentLightState = RedFarAutoCycle.LightState.IDLE;
+    private BlueFarAutoCycle.LightState currentLightState = BlueFarAutoCycle.LightState.IDLE;
     private ElapsedTime lightTimer = new ElapsedTime();
 
     private double animationMin = 0.0, animationMax = 0.0, animationDurationSec = 1.0;
@@ -52,18 +52,15 @@ public class RedFarAutoCycle extends OpMode {
     private double transitionFromPos = 0.0, transitionToPos = 0.0, targetMin = 0.0, targetMax = 0.0;
     private static final double TRANSITION_DURATION_SEC = 0.5;
 
-    private static final double C_OFF = 0.1;
+    // LED 颜色常量
     private static final double C_RED = 0.279;
     private static final double C_ORANGE = 0.333;
-    private static final double C_YELLOW = 0.388;
     private static final double C_SAGE = 0.444;
     private static final double C_GREEN = 0.500;
     private static final double C_Azure = 0.555;
     private static final double C_BLUE = 0.611;
     private static final double C_Indigo = 0.666;
     private static final double C_VIOLET = 0.722;
-    private static final double C_WHITE = 0.8;
-
 
     // --- 飞轮 PID 变量 ---
     private ElapsedTime shooterPidTimer = new ElapsedTime();
@@ -79,8 +76,10 @@ public class RedFarAutoCycle extends OpMode {
     private boolean isShootingTaskActive = false;
     private boolean isChassisPausedByShot = false;
 
-    // --- 路径定义 ---
-    private final Pose startPose = new Pose(88.000, 8.000, Math.toRadians(-90));
+    // --- 路径定义 (镜像后的起始姿态) ---
+    // X = 144 - 88 = 56
+    // Heading = 180 - (-90) = 270
+    private final Pose startPose = new Pose(56.000, 8.000, Math.toRadians(270));
     private PathChain Path1, Path2, Path3, Path4, Path5;
 
     @Override
@@ -120,14 +119,14 @@ public class RedFarAutoCycle extends OpMode {
     @Override
     public void start() {
         setPathState(0);
-        // 初始状态：蓝色呼吸灯 (Blue Alliance)
-        setLightAnimation(C_BLUE, C_Indigo, 1.5);
+        // 镜像联盟颜色：如果原版是蓝色对应蓝方，这里改为红色呼吸灯表示红方，反之亦然。
+        // 这里假设原版代码写着 Red 但逻辑是 Blue。我们将其改为红色呼吸灯 (Red Alliance)
+        setLightAnimation(C_RED, C_ORANGE, 1.5);
     }
 
     @Override
     public void loop() {
         updateShooterPID();
-        // 发射逻辑现在内部包含了转速检测
         if (isShootingTaskActive) runShootingSequence(); else updateIntakeLogic();
 
         follower.update();
@@ -135,63 +134,43 @@ public class RedFarAutoCycle extends OpMode {
         updateLights();
         telemetry.addData("State", pathState);
         telemetry.addData("Current RPM", "%.0f", getShooterRPM());
-        telemetry.addData("Mozart Status", isShootingTaskActive ? (Math.abs(getShooterRPM() - targetShooterRPM) <= RPM_TOLERANCE ? "FIRING" : "WAITING") : "IDLE");
         telemetry.update();
     }
-    public void setLightAnimation(double min, double max, double durationSec) {
-        if (targetMin == min && targetMax == max && Math.abs(animationDurationSec - durationSec) < 0.01) {
-            return;
-        }
 
+    public void setLightAnimation(double min, double max, double durationSec) {
+        if (targetMin == min && targetMax == max && Math.abs(animationDurationSec - durationSec) < 0.01) return;
         this.targetMin = min;
         this.targetMax = max;
         this.animationDurationSec = durationSec;
-
         this.transitionFromPos = lightLeft.getPosition();
         this.transitionToPos = this.targetMin;
-
-        this.currentLightState = RedFarAutoCycle.LightState.TRANSITIONING;
+        this.currentLightState = BlueFarAutoCycle.LightState.TRANSITIONING;
         this.lightTimer.reset();
     }
 
     public void updateLights() {
         double currentPosition = lightLeft.getPosition();
         double elapsedTime = lightTimer.seconds();
-
         switch (currentLightState) {
-            case IDLE:
-                break;
-
+            case IDLE: break;
             case TRANSITIONING:
                 double transitionProgress = Math.min(elapsedTime / TRANSITION_DURATION_SEC, 1.0);
                 currentPosition = transitionFromPos + (transitionToPos - transitionFromPos) * transitionProgress;
-
                 if (transitionProgress >= 1.0) {
                     currentPosition = transitionToPos;
-                    animationMin = targetMin;
-                    animationMax = targetMax;
+                    animationMin = targetMin; animationMax = targetMax;
                     isFadingUp = true;
-                    currentLightState = RedFarAutoCycle.LightState.ANIMATING;
+                    currentLightState = BlueFarAutoCycle.LightState.ANIMATING;
                     lightTimer.reset();
                 }
                 break;
-
             case ANIMATING:
                 double animationProgress = Math.min(elapsedTime / animationDurationSec, 1.0);
-
-                if (isFadingUp) {
-                    currentPosition = animationMin + (animationMax - animationMin) * animationProgress;
-                } else {
-                    currentPosition = animationMax - (animationMax - animationMin) * animationProgress;
-                }
-
-                if (animationProgress >= 1.0) {
-                    isFadingUp = !isFadingUp;
-                    lightTimer.reset();
-                }
+                if (isFadingUp) currentPosition = animationMin + (animationMax - animationMin) * animationProgress;
+                else currentPosition = animationMax - (animationMax - animationMin) * animationProgress;
+                if (animationProgress >= 1.0) { isFadingUp = !isFadingUp; lightTimer.reset(); }
                 break;
         }
-
         lightLeft.setPosition(currentPosition);
         lightRight.setPosition(currentPosition);
     }
@@ -199,21 +178,23 @@ public class RedFarAutoCycle extends OpMode {
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
-                setLightAnimation(C_BLUE, C_Indigo, 1.5);
+                setLightAnimation(C_RED, C_ORANGE, 1.5); // 蓝方镜像后改为红色系(对应镜像半场)
                 targetShooterRPM = FarShootingRPM;
                 follower.followPath(Path1, true);
                 setPathState(1);
                 break;
             case 1:
                 if (!follower.isBusy()) {
-                    setLightAnimation(C_RED,C_ORANGE,0.5);
-                    shooting(1000, false); // 发射 1s
-                    setPathState(2);
-                }
+                    if (actionTimer.getElapsedTimeSeconds() > 0.3) {
+                        setLightAnimation(C_RED, C_ORANGE, 0.5);
+                        shooting(1000, false);
+                        setPathState(2);
+                    }
+                } else { actionTimer.resetTimer(); }
                 break;
             case 2:
                 if (!isShootingTaskActive) {
-                    setLightAnimation(C_ORANGE,C_SAGE,0.5);
+                    setLightAnimation(C_ORANGE, C_SAGE, 0.5);
                     targetShooterRPM = IdleRPM;
                     loopCount = 0;
                     setPathState(10);
@@ -223,13 +204,11 @@ public class RedFarAutoCycle extends OpMode {
                 if (loopCount < 3) {
                     follower.followPath(Path2, false);
                     setPathState(11);
-                } else {
-                    setPathState(20);
-                }
+                } else { setPathState(20); }
                 break;
             case 11:
                 if (!follower.isBusy()) {
-                    setLightAnimation(C_Azure,C_VIOLET,2);
+                    setLightAnimation(C_Azure, C_VIOLET, 2);
                     setIntake(true);
                     follower.setMaxPower(0.7);
                     follower.followPath(Path3, false);
@@ -239,26 +218,26 @@ public class RedFarAutoCycle extends OpMode {
             case 12:
                 if (!follower.isBusy()) {
                     if (actionTimer.getElapsedTimeSeconds() > 1.0) {
-                        setLightAnimation(C_BLUE, C_Indigo, 1.5);
+                        setLightAnimation(C_RED, C_ORANGE, 1.5);
                         targetShooterRPM = FarShootingRPM;
                         follower.setMaxPower(1);
                         follower.followPath(Path4, true);
                         setPathState(13);
                     }
-                } else {
-                    actionTimer.resetTimer();
-                }
+                } else { actionTimer.resetTimer(); }
                 break;
             case 13:
                 if (!follower.isBusy()) {
-                    setLightAnimation(C_RED,C_ORANGE,0.5);
-                    shooting(1000, false);
-                    setPathState(14);
-                }
+                    if (actionTimer.getElapsedTimeSeconds() > 0.3) {
+                        setLightAnimation(C_RED, C_ORANGE, 0.5);
+                        shooting(1000, false);
+                        setPathState(14);
+                    }
+                } else { actionTimer.resetTimer(); }
                 break;
             case 14:
                 if (!isShootingTaskActive) {
-                    setLightAnimation(C_ORANGE,C_SAGE,0.5);
+                    setLightAnimation(C_ORANGE, C_SAGE, 0.5);
                     targetShooterRPM = IdleRPM;
                     setIntake(false);
                     loopCount++;
@@ -267,7 +246,7 @@ public class RedFarAutoCycle extends OpMode {
                 break;
             case 20:
                 targetShooterRPM = 0;
-                setLightAnimation(C_RED,C_VIOLET,0.8);
+                setLightAnimation(C_VIOLET, C_Indigo, 0.8);
                 follower.followPath(Path5, true);
                 setPathState(21);
                 break;
@@ -277,33 +256,19 @@ public class RedFarAutoCycle extends OpMode {
         }
     }
 
-    // ================= 核心：带门控的发射逻辑 =================
-
     private void runShootingSequence() {
         if (shootActionTimer.seconds() < shootTimeLimitSec) {
-            // Intake 和 Hold 始终强制开启
             Intake.setPower(1.0);
             Hold.setPower(1.0);
-
-            // --- 理想射击范围门控 ---
-            double currentRPM = getShooterRPM();
-            // 只有当转速处于 目标值 ± 70 RPM 之间时，才驱动 Mozart
-            if (Math.abs(currentRPM - targetShooterRPM) <= RPM_TOLERANCE) {
-                Mozart.setPower(0.8); // 正常供弹
-            } else {
-                Mozart.setPower(0);   // 掉速严重，立即刹车等待恢复
-            }
+            if (Math.abs(getShooterRPM() - targetShooterRPM) <= RPM_TOLERANCE) {
+                Mozart.setPower(0.8);
+            } else { Mozart.setPower(0); }
         } else {
-            // 任务结束，彻底停止
             isShootingTaskActive = false;
-            Intake.setPower(0);
-            Mozart.setPower(0);
-            Hold.setPower(0);
+            Intake.setPower(0); Mozart.setPower(0); Hold.setPower(0);
             if (isChassisPausedByShot) follower.resumePathFollowing();
         }
     }
-
-    // ================= 系统功能函数 (保持不变) =================
 
     public void shooting(long millis, boolean holdChassis) {
         shootTimeLimitSec = millis / 1000.0;
@@ -323,24 +288,19 @@ public class RedFarAutoCycle extends OpMode {
             Intake.setPower(1.0); Hold.setPower(1.0);
             if (!hasCaughtObject && juju.getState()) hasCaughtObject = true;
             Mozart.setPower(hasCaughtObject ? 0 : 0.6);
-        } else {
-            Intake.setPower(0); Hold.setPower(0); Mozart.setPower(0);
-        }
+        } else { Intake.setPower(0); Hold.setPower(0); Mozart.setPower(0); }
     }
 
     private void updateShooterPID() {
         if (currentSlewRPM > targetShooterRPM) {
             currentSlewRPM -= RPM_DOWN_STEP;
             if (currentSlewRPM < targetShooterRPM) currentSlewRPM = targetShooterRPM;
-        } else {
-            currentSlewRPM = targetShooterRPM;
-        }
-        double currentVelTPS = SH.getVelocity();
+        } else { currentSlewRPM = targetShooterRPM; }
         double targetVelTPS = (currentSlewRPM * TICKS_PER_REV) / 60.0;
         double dt = shooterPidTimer.seconds();
         shooterPidTimer.reset();
         if (dt == 0) dt = 1e-9;
-        double errorTPS = targetVelTPS - currentVelTPS;
+        double errorTPS = targetVelTPS - SH.getVelocity();
         double derivative = (errorTPS - shooterLastError) / dt;
         shooterLastError = errorTPS;
         double finalPower = (SHOOTER_F * targetVelTPS) + (SHOOTER_P * errorTPS) + (SHOOTER_D * derivative);
@@ -351,29 +311,34 @@ public class RedFarAutoCycle extends OpMode {
     private double getShooterRPM() { return (SH.getVelocity() * 60.0) / TICKS_PER_REV; }
 
     public void buildPaths() {
+        // Path 1 (镜像计算: X=144-88=56, 144-88.5=55.5; Heading=180-270=-90(270), 180-245=-65)
         Path1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(88.000, 8.000), new Pose(88.500, 14.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(245))
+                .addPath(new BezierLine(new Pose(56.000, 8.000), new Pose(55.500, 14.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-65))
                 .build();
 
+        // Path 2 (镜像计算: X=144-88.5=55.5, 144-132.35=11.65; Heading=180-245=-65, 180-300=-120)
         Path2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(88.500, 14.000), new Pose(132.350, 22.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(245), Math.toRadians(300))
+                .addPath(new BezierLine(new Pose(55.500, 14.000), new Pose(11.650, 22.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(-65), Math.toRadians(-120))
                 .build();
 
+        // Path 3 (镜像计算: X=144-132.35=11.65, 144-135.6=8.4; Heading=180-300=-120, 180-270=-90(270))
         Path3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(132.350, 22.000), new Pose(135.600, 8.400)))
-                .setLinearHeadingInterpolation(Math.toRadians(300), Math.toRadians(270))
+                .addPath(new BezierLine(new Pose(11.650, 22.000), new Pose(8.400, 8.400)))
+                .setLinearHeadingInterpolation(Math.toRadians(-120), Math.toRadians(270))
                 .build();
 
+        // Path 4 (镜像计算: X=8.4, 144-80=64, 144-81.5=62.5; Heading=180-270=-90(270), 180-245=-65)
         Path4 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(135.600, 8.400), new Pose(80.000, 75), new Pose(81.500, 14.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(245))
+                .addPath(new BezierCurve(new Pose(8.400, 8.400), new Pose(64.000, 75.000), new Pose(62.500, 14.000)))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-65))
                 .build();
 
+        // Path 5 (镜像计算: X=62.5, 144-120.3=23.7, 144-130=14; Heading=180-245=-65, 180-0=180)
         Path5 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(81.500, 14.000), new Pose(120.300, 75.000), new Pose(130, 8.490)))
-                .setLinearHeadingInterpolation(Math.toRadians(245), Math.toRadians(0))
+                .addPath(new BezierCurve(new Pose(62.500, 14.000), new Pose(23.700, 75.000), new Pose(14.000, 8.490)))
+                .setLinearHeadingInterpolation(Math.toRadians(-65), Math.toRadians(180))
                 .build();
     }
 
