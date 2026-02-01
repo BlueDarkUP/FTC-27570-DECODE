@@ -18,7 +18,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Auto 2: 远点循环 (带转速门控发射)", group = "Main")
+@Autonomous(name = "红方远点", group = "Main")
 public class RedFarAutoCycle extends OpMode {
 
     private Follower follower;
@@ -370,12 +370,12 @@ public class RedFarAutoCycle extends OpMode {
                 .build();
 
         Path3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(132.350, 22.000), new Pose(135.600, 8.400)))
+                .addPath(new BezierLine(new Pose(132.350, 22.000), new Pose(136.600, 8.400)))
                 .setLinearHeadingInterpolation(Math.toRadians(300), Math.toRadians(270))
                 .build();
 
         Path4 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(135.600, 8.400), new Pose(80.000, 75), new Pose(81.500, 14.000)))
+                .addPath(new BezierCurve(new Pose(136.600, 8.400), new Pose(80.000, 75), new Pose(81.500, 14.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(245))
                 .build();
 

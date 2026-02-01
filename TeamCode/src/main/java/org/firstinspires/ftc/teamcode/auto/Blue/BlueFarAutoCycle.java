@@ -18,7 +18,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Auto 2: 远点循环 (蓝方镜像)", group = "Main")
+@Autonomous(name = "蓝方远点", group = "Main")
 public class BlueFarAutoCycle extends OpMode {
 
     private Follower follower;
@@ -314,24 +314,24 @@ public class BlueFarAutoCycle extends OpMode {
         // Path 1 (镜像计算: X=144-88=56, 144-88.5=55.5; Heading=180-270=-90(270), 180-245=-65)
         Path1 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(56.000, 8.000), new Pose(55.500, 14.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-65))
+                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-68))
                 .build();
 
         // Path 2 (镜像计算: X=144-88.5=55.5, 144-132.35=11.65; Heading=180-245=-65, 180-300=-120)
         Path2 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(55.500, 14.000), new Pose(11.650, 22.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(-65), Math.toRadians(-120))
+                .setLinearHeadingInterpolation(Math.toRadians(-68), Math.toRadians(-120))
                 .build();
 
         // Path 3 (镜像计算: X=144-132.35=11.65, 144-135.6=8.4; Heading=180-300=-120, 180-270=-90(270))
         Path3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(11.650, 22.000), new Pose(8.400, 8.400)))
+                .addPath(new BezierLine(new Pose(11.650, 22.000), new Pose(7, 8.400)))
                 .setLinearHeadingInterpolation(Math.toRadians(-120), Math.toRadians(270))
                 .build();
 
         // Path 4 (镜像计算: X=8.4, 144-80=64, 144-81.5=62.5; Heading=180-270=-90(270), 180-245=-65)
         Path4 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(8.400, 8.400), new Pose(64.000, 75.000), new Pose(62.500, 14.000)))
+                .addPath(new BezierCurve(new Pose(7, 8.400), new Pose(64.000, 75.000), new Pose(62.500, 14.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-65))
                 .build();
 
