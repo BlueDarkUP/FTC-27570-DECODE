@@ -26,7 +26,7 @@ public class RedFarAutoCycle extends OpMode {
     private int pathState = 0;
     private int loopCount = 0;
 
-    private final double FarShootingRPM = 3400.0;
+    private final double FarShootingRPM = 3250.0;
     private final double IdleRPM = 1500.0;
     private final double RPM_TOLERANCE = 300.0;
 
@@ -264,7 +264,7 @@ public class RedFarAutoCycle extends OpMode {
             Intake.setPower(1.0);
             Hold.setPower(1.0);
             if (Math.abs(getShooterRPM() - targetShooterRPM) <= RPM_TOLERANCE) {
-                Mozart.setPower(0.8);
+                Mozart.setPower(0.6);
             } else { Mozart.setPower(0); }
         } else {
             isShootingTaskActive = false;

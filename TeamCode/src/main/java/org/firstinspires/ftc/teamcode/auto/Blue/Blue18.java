@@ -25,8 +25,8 @@ public class Blue18 extends OpMode {
     private Timer pathTimer, cycleTimer, actionTimer;
     private int pathState = 0;
 
-    private final double FirstShootingPower = 2600.0;
-    private final double NormalShootingPower = 2730.0;
+    private final double FirstShootingPower = 2750.0;
+    private final double NormalShootingPower = 2658.0;
     private final double IdleShootingPower = 1500.0;
 
     private DcMotorEx SH, HS, Intake, Mozart;
@@ -233,7 +233,7 @@ public class Blue18 extends OpMode {
                 break;
 
             case 1:
-                if (pathTimer.getElapsedTimeSeconds() > 0.3) {
+                if (pathTimer.getElapsedTimeSeconds() > 0.45) {
                     setLightAnimation(C_RED, C_ORANGE, 0.5);
                     shooting(500, false);
                     servoLP.setPosition(0.30);
@@ -441,7 +441,7 @@ public class Blue18 extends OpMode {
 
     private void runShootingSequence() {
         if (shootActionTimer.seconds() < shootTimeLimitSec) {
-            Intake.setPower(1.0); Mozart.setPower(0.85); Hold.setPower(1.0);
+            Intake.setPower(1.0); Mozart.setPower(0.85); Hold.setPower(-1.0);
         } else {
             isShootingTaskActive = false;
             Intake.setPower(0); Mozart.setPower(0); Hold.setPower(0);
@@ -459,7 +459,7 @@ public class Blue18 extends OpMode {
 
     private void updateIntakeLogic() {
         if (isIntakeActive) {
-            Intake.setPower(1.0); Hold.setPower(1.0);
+            Intake.setPower(1.0); Hold.setPower(0);
             if (!hasCaughtObject && juju.getState()) hasCaughtObject = true;
             Mozart.setPower(hasCaughtObject ? 0 : 0.6);
         } else {
@@ -487,15 +487,15 @@ public class Blue18 extends OpMode {
         Path1 = follower.pathBuilder().addPath(new BezierLine(new Pose(27.495, 132.350), new Pose(55.951, 93.204))).setLinearHeadingInterpolation(Math.toRadians(-36), Math.toRadians(-50)).build();
         Path2 = follower.pathBuilder().addPath(new BezierLine(new Pose(55.951, 93.204), new Pose(44.505, 66))).setLinearHeadingInterpolation(Math.toRadians(-50), Math.toRadians(180)).build();
         Path3 = follower.pathBuilder().addPath(new BezierLine(new Pose(44.505, 66), new Pose(14.500, 66))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180)).build();
-        Path4 = follower.pathBuilder().addPath(new BezierCurve(new Pose(14.500, 66), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-55)).build();
-        Path5 = follower.pathBuilder().addPath(new BezierCurve(new Pose(55, 77), new Pose(40.000, 25.000),new Pose(8, 58))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(160)).build();
-        Path6 = follower.pathBuilder().addPath(new BezierCurve(new Pose(8, 58), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(160), Math.toRadians(-55)).build();
-        Path7 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(46.602, 86.5))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(180)).build();
+        Path4 = follower.pathBuilder().addPath(new BezierCurve(new Pose(14.500, 66), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-52.5)).build();
+        Path5 = follower.pathBuilder().addPath(new BezierCurve(new Pose(55, 77), new Pose(40.000, 25.000),new Pose(12.3, 61))).setLinearHeadingInterpolation(Math.toRadians(-52.5), Math.toRadians(160)).build();
+        Path6 = follower.pathBuilder().addPath(new BezierCurve(new Pose(12.3, 61), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(160), Math.toRadians(-52.5)).build();
+        Path7 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(46.602, 86.5))).setLinearHeadingInterpolation(Math.toRadians(-52.5), Math.toRadians(180)).build();
         Path8 = follower.pathBuilder().addPath(new BezierLine(new Pose(46.602, 86.5), new Pose(22.5, 86.5))).setTangentHeadingInterpolation().build();
-        Path9 = follower.pathBuilder().addPath(new BezierLine(new Pose(24.000, 86.5), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-55)).build();
-        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(43.107, 44))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(180)).build();
+        Path9 = follower.pathBuilder().addPath(new BezierLine(new Pose(24.000, 86.5), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-52.5)).build();
+        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(43.107, 44))).setLinearHeadingInterpolation(Math.toRadians(-52.5), Math.toRadians(180)).build();
         Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(43.107, 44), new Pose(17, 44))).setTangentHeadingInterpolation().build();
-        Path12 = follower.pathBuilder().addPath(new BezierLine(new Pose(17, 44), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-55)).build();
-        Path13 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(57.553, 56.388))).setLinearHeadingInterpolation(Math.toRadians(-55), Math.toRadians(180)).build();
+        Path12 = follower.pathBuilder().addPath(new BezierLine(new Pose(17, 44), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-52.5)).build();
+        Path13 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(57.553, 56.388))).setLinearHeadingInterpolation(Math.toRadians(-52.5), Math.toRadians(180)).build();
     }
 }

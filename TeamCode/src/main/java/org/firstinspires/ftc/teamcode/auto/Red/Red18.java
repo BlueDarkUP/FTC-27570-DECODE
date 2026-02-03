@@ -25,8 +25,8 @@ public class Red18 extends OpMode {
     private Timer pathTimer, cycleTimer, actionTimer;
     private int pathState = 0;
 
-    private final double FirstShootingPower = 2650.0;
-    private final double NormalShootingPower = 2680.0;
+    private final double FirstShootingPower = 2750.0;
+    private final double NormalShootingPower = 2625.0;
     private final double IdleShootingPower = 1500.0;
 
     private DcMotorEx SH, HS, Intake, Mozart;
@@ -236,7 +236,7 @@ public class Red18 extends OpMode {
                 break;
 
             case 1:
-                if (pathTimer.getElapsedTimeSeconds() > 0.35) {
+                if (pathTimer.getElapsedTimeSeconds() > 0.45) {
                     setLightAnimation(C_RED, C_ORANGE, 0.5);
                     shooting(500, false);
                     servoLP.setPosition(0.30);
@@ -445,7 +445,7 @@ public class Red18 extends OpMode {
 
     private void runShootingSequence() {
         if (shootActionTimer.seconds() < shootTimeLimitSec) {
-            Intake.setPower(1.0); Mozart.setPower(0.8); Hold.setPower(1.0);
+            Intake.setPower(1.0); Mozart.setPower(0.8); Hold.setPower(-1.0);
         } else {
             isShootingTaskActive = false;
             Intake.setPower(0); Mozart.setPower(0); Hold.setPower(0);
@@ -463,7 +463,7 @@ public class Red18 extends OpMode {
 
     private void updateIntakeLogic() {
         if (isIntakeActive) {
-            Intake.setPower(1.0); Hold.setPower(1.0);
+            Intake.setPower(1.0); Hold.setPower(0);
             if (!hasCaughtObject && juju.getState()) hasCaughtObject = true;
             Mozart.setPower(hasCaughtObject ? 0 : 0.6);
         } else {
@@ -508,7 +508,7 @@ public class Red18 extends OpMode {
         // Old X: 14.500 -> New X: 129.500
         // Heading: 180 -> 0
         Path3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(99.495, 58), new Pose(129.500, 58)))
+                .addPath(new BezierLine(new Pose(99.495, 58), new Pose(123.00, 58)))
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
 
@@ -525,7 +525,7 @@ public class Red18 extends OpMode {
         // End Old X: 8 -> New: 136
         // Heading: -55 -> 235, 160 -> 20
         Path5 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(88, 76), new Pose(104.000, 25.000), new Pose(134.5, 48)))
+                .addPath(new BezierCurve(new Pose(88, 76), new Pose(104.000, 25.000), new Pose(133.8, 52)))
                 .setLinearHeadingInterpolation(Math.toRadians(235), Math.toRadians(20))
                 .build();
 
@@ -534,7 +534,7 @@ public class Red18 extends OpMode {
         // End Old X: 54 -> New: 90
         // Heading: 160 -> 20, -55 -> 235
         Path6 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(134.5, 48), new Pose(88, 76)))
+                .addPath(new BezierCurve(new Pose(133.8, 52), new Pose(88, 76)))
                 .setLinearHeadingInterpolation(Math.toRadians(20), Math.toRadians(235))
                 .build();
 
@@ -550,7 +550,7 @@ public class Red18 extends OpMode {
         // End Old X: 22.5 -> New: 121.5
         // Tangent
         Path8 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(97.398, 78.5), new Pose(121.5, 78.5)))
+                .addPath(new BezierLine(new Pose(97.398, 78.5), new Pose(121, 78.5)))
                 .setTangentHeadingInterpolation()
                 .build();
 
