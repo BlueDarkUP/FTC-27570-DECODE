@@ -75,7 +75,7 @@ public class Red18 extends OpMode {
     private ElapsedTime shooterPidTimer = new ElapsedTime();
     private double targetShooterRPM = 0;
     private double shooterLastError = 0;
-    private static final double SHOOTER_P = 0.0065, SHOOTER_F = 0.0004, SHOOTER_D = 0.00001, TICKS_PER_REV = 28.0;
+    private static final double SHOOTER_P = 0.007, SHOOTER_F = 0.0003, SHOOTER_D = 0.000001, TICKS_PER_REV = 28.0;
 
     private boolean isIntakeActive = false;
     private boolean hasCaughtObject = false;
@@ -525,7 +525,7 @@ public class Red18 extends OpMode {
         // End Old X: 8 -> New: 136
         // Heading: -55 -> 235, 160 -> 20
         Path5 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(88, 76), new Pose(104.000, 25.000), new Pose(134.5, 47.5)))
+                .addPath(new BezierCurve(new Pose(88, 76), new Pose(104.000, 25.000), new Pose(134.5, 48)))
                 .setLinearHeadingInterpolation(Math.toRadians(235), Math.toRadians(20))
                 .build();
 
@@ -534,7 +534,7 @@ public class Red18 extends OpMode {
         // End Old X: 54 -> New: 90
         // Heading: 160 -> 20, -55 -> 235
         Path6 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(134.5, 47.5), new Pose(88, 76)))
+                .addPath(new BezierCurve(new Pose(134.5, 48), new Pose(88, 76)))
                 .setLinearHeadingInterpolation(Math.toRadians(20), Math.toRadians(235))
                 .build();
 

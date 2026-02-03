@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.Blue; // 修改包名为 Blue
+package org.firstinspires.ftc.teamcode.auto.Blue;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -26,16 +26,13 @@ public class BlueFarAutoCycle extends OpMode {
     private int pathState = 0;
     private int loopCount = 0;
 
-    // --- 配置常量 ---
     private final double FarShootingRPM = 3400.0;
     private final double IdleRPM = 1500.0;
     private final double RPM_TOLERANCE = 300.0;
 
-    // 平滑降速逻辑
     private double currentSlewRPM = 0;
     private final double RPM_DOWN_STEP = 8.0;
 
-    // --- 硬件定义 ---
     private DcMotorEx SH, HS, Intake, Mozart;
     private CRServo Hold;
     private Servo servoRP = null, servoLP = null;
@@ -52,7 +49,6 @@ public class BlueFarAutoCycle extends OpMode {
     private double transitionFromPos = 0.0, transitionToPos = 0.0, targetMin = 0.0, targetMax = 0.0;
     private static final double TRANSITION_DURATION_SEC = 0.5;
 
-    // LED 颜色常量
     private static final double C_RED = 0.279;
     private static final double C_ORANGE = 0.333;
     private static final double C_SAGE = 0.444;
@@ -62,13 +58,11 @@ public class BlueFarAutoCycle extends OpMode {
     private static final double C_Indigo = 0.666;
     private static final double C_VIOLET = 0.722;
 
-    // --- 飞轮 PID 变量 ---
     private ElapsedTime shooterPidTimer = new ElapsedTime();
     private double targetShooterRPM = 0;
     private double shooterLastError = 0;
-    private static final double SHOOTER_P = 0.006, SHOOTER_F = 0.0004, SHOOTER_D = 0.00001, TICKS_PER_REV = 28.0;
+    private static final double SHOOTER_P = 0.007, SHOOTER_F = 0.0003, SHOOTER_D = 0.000001, TICKS_PER_REV = 28.0;
 
-    // --- 机构控制变量 ---
     private boolean isIntakeActive = false;
     private boolean hasCaughtObject = false;
     private ElapsedTime shootActionTimer = new ElapsedTime();
@@ -76,11 +70,8 @@ public class BlueFarAutoCycle extends OpMode {
     private boolean isShootingTaskActive = false;
     private boolean isChassisPausedByShot = false;
 
-    // --- 路径定义 (镜像后的起始姿态) ---
-    // X = 144 - 88 = 56
-    // Heading = 180 - (-90) = 270
     private final Pose startPose = new Pose(56.000, 8.000, Math.toRadians(270));
-    private PathChain Path1, Path2, Path3, Path4, Path5;
+    private PathChain Path1, Path2, PathWiggle, Path3, Path4;
 
     @Override
     public void init() {
@@ -113,14 +104,13 @@ public class BlueFarAutoCycle extends OpMode {
         follower.setStartingPose(startPose);
         servoLP.setPosition(0.925);
         servoRP.setPosition(0.03);
+
         buildPaths();
     }
 
     @Override
     public void start() {
         setPathState(0);
-        // 镜像联盟颜色：如果原版是蓝色对应蓝方，这里改为红色呼吸灯表示红方，反之亦然。
-        // 这里假设原版代码写着 Red 但逻辑是 Blue。我们将其改为红色呼吸灯 (Red Alliance)
         setLightAnimation(C_RED, C_ORANGE, 1.5);
     }
 
@@ -133,6 +123,8 @@ public class BlueFarAutoCycle extends OpMode {
         autonomousPathUpdate();
         updateLights();
         telemetry.addData("State", pathState);
+        telemetry.addData("Loop", loopCount);
+        telemetry.addData("T-Value", follower.getCurrentTValue());
         telemetry.addData("Current RPM", "%.0f", getShooterRPM());
         telemetry.update();
     }
@@ -178,7 +170,7 @@ public class BlueFarAutoCycle extends OpMode {
     public void autonomousPathUpdate() {
         switch (pathState) {
             case 0:
-                setLightAnimation(C_RED, C_ORANGE, 1.5); // 蓝方镜像后改为红色系(对应镜像半场)
+                setLightAnimation(C_RED, C_ORANGE, 1.5);
                 targetShooterRPM = FarShootingRPM;
                 follower.followPath(Path1, true);
                 setPathState(1);
@@ -200,42 +192,51 @@ public class BlueFarAutoCycle extends OpMode {
                     setPathState(10);
                 }
                 break;
+
             case 10:
                 if (loopCount < 3) {
-                    follower.followPath(Path2, false);
-                    setPathState(11);
-                } else { setPathState(20); }
-                break;
-            case 11:
-                if (!follower.isBusy()) {
                     setLightAnimation(C_Azure, C_VIOLET, 2);
                     setIntake(true);
-                    follower.setMaxPower(0.7);
-                    follower.followPath(Path3, false);
+                    follower.setMaxPower(0.85);
+                    follower.followPath(Path2, false);
+                    setPathState(11);
+                } else {
+                    setPathState(20);
+                }
+                break;
+
+            case 11:
+                if (!follower.isBusy()) {
+                    follower.setMaxPower(0.5);
+                    follower.followPath(PathWiggle, false);
+                    actionTimer.resetTimer();
+                    setPathState(15);
+                }
+                break;
+
+            case 15:
+                if (actionTimer.getElapsedTimeSeconds() > 1.5) {
+                    follower.setMaxPower(1.0);
+                    follower.followPath(Path3, true);
                     setPathState(12);
                 }
                 break;
+
             case 12:
                 if (!follower.isBusy()) {
-                    if (actionTimer.getElapsedTimeSeconds() > 1.0) {
-                        setLightAnimation(C_RED, C_ORANGE, 1.5);
-                        targetShooterRPM = FarShootingRPM;
-                        follower.setMaxPower(1);
-                        follower.followPath(Path4, true);
-                        setPathState(13);
-                    }
-                } else { actionTimer.resetTimer(); }
-                break;
-            case 13:
-                if (!follower.isBusy()) {
-                    if (actionTimer.getElapsedTimeSeconds() > 0.3) {
+                    targetShooterRPM = FarShootingRPM;
+                    if (actionTimer.getElapsedTimeSeconds() > 0.5) {
                         setLightAnimation(C_RED, C_ORANGE, 0.5);
                         shooting(1000, false);
-                        setPathState(14);
+                        setPathState(13);
                     }
-                } else { actionTimer.resetTimer(); }
+                } else {
+                    if(follower.getCurrentTValue() > 0.5) targetShooterRPM = FarShootingRPM;
+                    actionTimer.resetTimer();
+                }
                 break;
-            case 14:
+
+            case 13:
                 if (!isShootingTaskActive) {
                     setLightAnimation(C_ORANGE, C_SAGE, 0.5);
                     targetShooterRPM = IdleRPM;
@@ -244,10 +245,12 @@ public class BlueFarAutoCycle extends OpMode {
                     setPathState(10);
                 }
                 break;
+
             case 20:
                 targetShooterRPM = 0;
+                setIntake(false);
                 setLightAnimation(C_VIOLET, C_Indigo, 0.8);
-                follower.followPath(Path5, true);
+                follower.followPath(Path4, true);
                 setPathState(21);
                 break;
             case 21:
@@ -311,34 +314,49 @@ public class BlueFarAutoCycle extends OpMode {
     private double getShooterRPM() { return (SH.getVelocity() * 60.0) / TICKS_PER_REV; }
 
     public void buildPaths() {
-        // Path 1 (镜像计算: X=144-88=56, 144-88.5=55.5; Heading=180-270=-90(270), 180-245=-65)
         Path1 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(56.000, 8.000), new Pose(55.500, 14.000)))
+                .addPath(new BezierLine(
+                        new Pose(56.000, 8.000),
+                        new Pose(56.000, 14.000)
+                ))
                 .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-68))
                 .build();
 
-        // Path 2 (镜像计算: X=144-88.5=55.5, 144-132.35=11.65; Heading=180-245=-65, 180-300=-120)
         Path2 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(55.500, 14.000), new Pose(11.650, 22.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(-68), Math.toRadians(-120))
+                .addPath(new BezierCurve(
+                        new Pose(56.000, 14.000),
+                        new Pose(50.000, 70.000),
+                        new Pose(9.000, 10)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(-68), Math.toRadians(180))
                 .build();
 
-        // Path 3 (镜像计算: X=144-132.35=11.65, 144-135.6=8.4; Heading=180-300=-120, 180-270=-90(270))
+        PathWiggle = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(9.000, 10), new Pose(15, 10)))
+                .setConstantHeadingInterpolation(Math.toRadians(180))
+                .addPath(new BezierLine(new Pose(15, 10), new Pose(9.000, 10)))
+                .setConstantHeadingInterpolation(Math.toRadians(180))
+                .addPath(new BezierLine(new Pose(9.000, 10), new Pose(15, 10)))
+                .setConstantHeadingInterpolation(Math.toRadians(180))
+                .addPath(new BezierLine(new Pose(15, 10), new Pose(9.000, 10)))
+                .setConstantHeadingInterpolation(Math.toRadians(180))
+                .build();
+
         Path3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(11.650, 22.000), new Pose(7, 8.400)))
-                .setLinearHeadingInterpolation(Math.toRadians(-120), Math.toRadians(270))
+                .addPath(new BezierCurve(
+                        new Pose(9.000, 10),
+                        new Pose(50.000, 70.000),
+                        new Pose(56.000, 14.000)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-68))
                 .build();
 
-        // Path 4 (镜像计算: X=8.4, 144-80=64, 144-81.5=62.5; Heading=180-270=-90(270), 180-245=-65)
         Path4 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(7, 8.400), new Pose(64.000, 75.000), new Pose(62.500, 14.000)))
-                .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(-65))
-                .build();
-
-        // Path 5 (镜像计算: X=62.5, 144-120.3=23.7, 144-130=14; Heading=180-245=-65, 180-0=180)
-        Path5 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(62.500, 14.000), new Pose(23.700, 75.000), new Pose(14.000, 8.490)))
-                .setLinearHeadingInterpolation(Math.toRadians(-65), Math.toRadians(180))
+                .addPath(new BezierLine(
+                        new Pose(56.000, 14.000),
+                        new Pose(40.000, 14.000)
+                ))
+                .setTangentHeadingInterpolation()
                 .build();
     }
 
