@@ -26,7 +26,7 @@ public class BlueFarAutoCycle extends OpMode {
     private int pathState = 0;
     private int loopCount = 0;
 
-    private final double FarShootingRPM = 3250.0;
+    private final double FarShootingRPM = 3200.0;
     private final double IdleRPM = 1500.0;
     private final double RPM_TOLERANCE = 300.0;
 
@@ -179,7 +179,7 @@ public class BlueFarAutoCycle extends OpMode {
                 if (!follower.isBusy()) {
                     if (actionTimer.getElapsedTimeSeconds() > 0.3) {
                         setLightAnimation(C_RED, C_ORANGE, 0.5);
-                        shooting(1000, false);
+                        shooting(1200, false);
                         setPathState(2);
                     }
                 } else { actionTimer.resetTimer(); }
@@ -197,7 +197,7 @@ public class BlueFarAutoCycle extends OpMode {
                 if (loopCount < 3) {
                     setLightAnimation(C_Azure, C_VIOLET, 2);
                     setIntake(true);
-                    follower.setMaxPower(0.85);
+                    follower.setMaxPower(0.95);
                     follower.followPath(Path2, false);
                     setPathState(11);
                 } else {
@@ -207,7 +207,7 @@ public class BlueFarAutoCycle extends OpMode {
 
             case 11:
                 if (!follower.isBusy()) {
-                    follower.setMaxPower(0.5);
+                    follower.setMaxPower(0.6);
                     follower.followPath(PathWiggle, false);
                     actionTimer.resetTimer();
                     setPathState(15);
@@ -227,7 +227,7 @@ public class BlueFarAutoCycle extends OpMode {
                     targetShooterRPM = FarShootingRPM;
                     if (actionTimer.getElapsedTimeSeconds() > 0.5) {
                         setLightAnimation(C_RED, C_ORANGE, 0.5);
-                        shooting(1000, false);
+                        shooting(1200, false);
                         setPathState(13);
                     }
                 } else {
@@ -262,7 +262,7 @@ public class BlueFarAutoCycle extends OpMode {
     private void runShootingSequence() {
         if (shootActionTimer.seconds() < shootTimeLimitSec) {
             Intake.setPower(1.0);
-            Hold.setPower(1.0);
+            Hold.setPower(-1.0);
             if (Math.abs(getShooterRPM() - targetShooterRPM) <= RPM_TOLERANCE) {
                 Mozart.setPower(0.6);
             } else { Mozart.setPower(0); }
@@ -288,7 +288,7 @@ public class BlueFarAutoCycle extends OpMode {
 
     private void updateIntakeLogic() {
         if (isIntakeActive) {
-            Intake.setPower(1.0); Hold.setPower(1.0);
+            Intake.setPower(1.0); Hold.setPower(0);
             if (!hasCaughtObject && juju.getState()) hasCaughtObject = true;
             Mozart.setPower(hasCaughtObject ? 0 : 0.6);
         } else { Intake.setPower(0); Hold.setPower(0); Mozart.setPower(0); }
@@ -325,8 +325,8 @@ public class BlueFarAutoCycle extends OpMode {
         Path2 = follower.pathBuilder()
                 .addPath(new BezierCurve(
                         new Pose(56.000, 14.000),
-                        new Pose(50.000, 70.000),
-                        new Pose(9.000, 10)
+                        new Pose(68.000, 60.000),
+                        new Pose(9.000, 11)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(-68), Math.toRadians(180))
                 .build();
@@ -344,8 +344,8 @@ public class BlueFarAutoCycle extends OpMode {
 
         Path3 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(9.000, 10),
-                        new Pose(50.000, 70.000),
+                        new Pose(9.000, 11),
+                        new Pose(68.000, 60.000),
                         new Pose(56.000, 14.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-68))

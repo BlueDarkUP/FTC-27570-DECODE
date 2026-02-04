@@ -26,7 +26,7 @@ public class RedFarAutoCycle extends OpMode {
     private int pathState = 0;
     private int loopCount = 0;
 
-    private final double FarShootingRPM = 3250.0;
+    private final double FarShootingRPM = 3200.0;
     private final double IdleRPM = 1500.0;
     private final double RPM_TOLERANCE = 300.0;
 
@@ -179,7 +179,7 @@ public class RedFarAutoCycle extends OpMode {
                 if (!follower.isBusy()) {
                     if (actionTimer.getElapsedTimeSeconds() > 0.3) {
                         setLightAnimation(C_RED, C_ORANGE, 0.5);
-                        shooting(1000, false);
+                        shooting(1200, false);
                         setPathState(2);
                     }
                 } else { actionTimer.resetTimer(); }
@@ -197,7 +197,7 @@ public class RedFarAutoCycle extends OpMode {
                 if (loopCount < 3) {
                     setLightAnimation(C_Azure, C_VIOLET, 2);
                     setIntake(true);
-                    follower.setMaxPower(0.85);
+                    follower.setMaxPower(0.95);
                     follower.followPath(Path2, false);
                     setPathState(11);
                 } else {
@@ -207,7 +207,7 @@ public class RedFarAutoCycle extends OpMode {
 
             case 11:
                 if (!follower.isBusy()) {
-                    follower.setMaxPower(0.5);
+                    follower.setMaxPower(0.6);
                     follower.followPath(PathWiggle, false);
                     actionTimer.resetTimer();
                     setPathState(15);
@@ -227,7 +227,7 @@ public class RedFarAutoCycle extends OpMode {
                     targetShooterRPM = FarShootingRPM;
                     if (actionTimer.getElapsedTimeSeconds() > 0.5) {
                         setLightAnimation(C_RED, C_ORANGE, 0.5);
-                        shooting(1000, false);
+                        shooting(1200, false);
                         setPathState(13);
                     }
                 } else {
@@ -262,7 +262,7 @@ public class RedFarAutoCycle extends OpMode {
     private void runShootingSequence() {
         if (shootActionTimer.seconds() < shootTimeLimitSec) {
             Intake.setPower(1.0);
-            Hold.setPower(1.0);
+            Hold.setPower(-1.0);
             if (Math.abs(getShooterRPM() - targetShooterRPM) <= RPM_TOLERANCE) {
                 Mozart.setPower(0.6);
             } else { Mozart.setPower(0); }
@@ -288,7 +288,7 @@ public class RedFarAutoCycle extends OpMode {
 
     private void updateIntakeLogic() {
         if (isIntakeActive) {
-            Intake.setPower(1.0); Hold.setPower(1.0);
+            Intake.setPower(1.0); Hold.setPower(0);
             if (!hasCaughtObject && juju.getState()) hasCaughtObject = true;
             Mozart.setPower(hasCaughtObject ? 0 : 0.6);
         } else { Intake.setPower(0); Hold.setPower(0); Mozart.setPower(0); }
@@ -325,27 +325,27 @@ public class RedFarAutoCycle extends OpMode {
         Path2 = follower.pathBuilder()
                 .addPath(new BezierCurve(
                         new Pose(88.000, 14.000),
-                        new Pose(94.000, 70.000), // 144 - 50
-                        new Pose(135.000, 10.000) // 144 - 9
+                        new Pose(85.000, 60.000), // 144 - 50
+                        new Pose(140, 12.000) // 144 - 9
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(248), Math.toRadians(0)) // 180 - 180
                 .build();
 
         PathWiggle = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(135.000, 10.000), new Pose(129.000, 10.000))) // 144 - 15
+                .addPath(new BezierLine(new Pose(138, 10.000), new Pose(129.000, 10.000))) // 144 - 15
                 .setConstantHeadingInterpolation(Math.toRadians(0))
-                .addPath(new BezierLine(new Pose(129.000, 10.000), new Pose(135.000, 10.000)))
+                .addPath(new BezierLine(new Pose(129.000, 10.000), new Pose(138, 10.000)))
                 .setConstantHeadingInterpolation(Math.toRadians(0))
-                .addPath(new BezierLine(new Pose(135.000, 10.000), new Pose(129.000, 10.000)))
+                .addPath(new BezierLine(new Pose(138, 10.000), new Pose(129.000, 10.000)))
                 .setConstantHeadingInterpolation(Math.toRadians(0))
-                .addPath(new BezierLine(new Pose(129.000, 10.000), new Pose(135.000, 10.000)))
+                .addPath(new BezierLine(new Pose(129.000, 10.000), new Pose(138, 10.000)))
                 .setConstantHeadingInterpolation(Math.toRadians(0))
                 .build();
 
         Path3 = follower.pathBuilder()
                 .addPath(new BezierCurve(
-                        new Pose(135.000, 10.000),
-                        new Pose(94.000, 70.000),
+                        new Pose(140, 12.000),
+                        new Pose(85.000, 60.000),
                         new Pose(88.000, 14.000)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(248))

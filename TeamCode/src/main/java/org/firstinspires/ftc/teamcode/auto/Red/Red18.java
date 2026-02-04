@@ -25,8 +25,8 @@ public class Red18 extends OpMode {
     private Timer pathTimer, cycleTimer, actionTimer;
     private int pathState = 0;
 
-    private final double FirstShootingPower = 2750.0;
-    private final double NormalShootingPower = 2625.0;
+    private final double FirstShootingPower = 2800.0;
+    private final double NormalShootingPower = 2600.0;
     private final double IdleShootingPower = 1500.0;
 
     private DcMotorEx SH, HS, Intake, Mozart;
@@ -264,8 +264,8 @@ public class Red18 extends OpMode {
                 if (!follower.isBusy()) {
                     setLightAnimation(C_Azure, C_VIOLET, 2);
                     setIntake(true);
-                    servoLP.setPosition(0.30);
-                    servoRP.setPosition(0.625);
+                    servoLP.setPosition(0.40);
+                    servoRP.setPosition(0.525);
                     follower.setMaxPower(0.9);
                     follower.followPath(Path3, false);
                     setPathState(3);
@@ -514,36 +514,36 @@ public class Red18 extends OpMode {
 
         // Path 4 (To Shooting Spot)
         // Old X: 54 -> New X: 90
-        // Heading: 180 -> 0, -55 -> 235
+        // Heading: 180 -> 0, -55 -> 231.5
         Path4 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(129.500, 58), new Pose(88, 76)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235))
+                .addPath(new BezierCurve(new Pose(123.0, 58), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(231.5))
                 .build();
 
         // Path 5 (Cycle)
         // Control Old X: 40 -> New: 104
         // End Old X: 8 -> New: 136
-        // Heading: -55 -> 235, 160 -> 20
+        // Heading: -55 -> 231.5, 160 -> 20
         Path5 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(88, 76), new Pose(104.000, 25.000), new Pose(133.8, 52)))
-                .setLinearHeadingInterpolation(Math.toRadians(235), Math.toRadians(20))
+                .addPath(new BezierCurve(new Pose(86, 78), new Pose(104.000, 21.5), new Pose(133.5, 52)))
+                .setLinearHeadingInterpolation(Math.toRadians(231.5), Math.toRadians(20))
                 .build();
 
         // Path 6 (Return to Shoot)
         // Start Old X: 5 -> New: 139 (Assuming slight deviation catch-up)
         // End Old X: 54 -> New: 90
-        // Heading: 160 -> 20, -55 -> 235
+        // Heading: 160 -> 20, -55 -> 231.5
         Path6 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(133.8, 52), new Pose(88, 76)))
-                .setLinearHeadingInterpolation(Math.toRadians(20), Math.toRadians(235))
+                .addPath(new BezierCurve(new Pose(133.5, 52), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(20), Math.toRadians(231.5))
                 .build();
 
         // Path 7
         // End Old X: 46.602 -> New: 97.398
-        // Heading: -55 -> 235, 180 -> 0
+        // Heading: -55 -> 231.5, 180 -> 0
         Path7 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(88, 76), new Pose(97.398, 78.5)))
-                .setLinearHeadingInterpolation(Math.toRadians(235), Math.toRadians(0))
+                .addPath(new BezierLine(new Pose(86, 78), new Pose(97.398, 78.5)))
+                .setLinearHeadingInterpolation(Math.toRadians(231.5), Math.toRadians(0))
                 .build();
 
         // Path 8
@@ -557,18 +557,18 @@ public class Red18 extends OpMode {
         // Path 9
         // Start Old X: 24.0 -> New: 120.0
         // End Old X: 54 -> New: 90
-        // Heading: 180 -> 0, -55 -> 235
+        // Heading: 180 -> 0, -55 -> 231.5
         Path9 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(120.000, 78.5), new Pose(88, 76)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235))
+                .addPath(new BezierLine(new Pose(120.000, 78.5), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(231.5))
                 .build();
 
         // Path 10
         // End Old X: 43.107 -> New: 100.893
-        // Heading: -55 -> 235, 180 -> 0
+        // Heading: -55 -> 231.5, 180 -> 0
         Path10 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(88, 76), new Pose(100.893, 36)))
-                .setLinearHeadingInterpolation(Math.toRadians(235), Math.toRadians(0))
+                .addPath(new BezierLine(new Pose(86, 78), new Pose(100.893, 36)))
+                .setLinearHeadingInterpolation(Math.toRadians(231.5), Math.toRadians(0))
                 .build();
 
         // Path 11
@@ -581,18 +581,18 @@ public class Red18 extends OpMode {
 
         // Path 12
         // End Old X: 54 -> New: 90
-        // Heading: 180 -> 0, -55 -> 235
+        // Heading: 180 -> 0, -55 -> 231.5
         Path12 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(127, 36), new Pose(88, 76)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235))
+                .addPath(new BezierLine(new Pose(127, 36), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(231.5))
                 .build();
 
         // Path 13 (Park)
         // End Old X: 57.553 -> New: 86.447
-        // Heading: -55 -> 235, 180 -> 0
+        // Heading: -55 -> 231.5, 180 -> 0
         Path13 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(88, 76), new Pose(86.447, 56.388)))
-                .setLinearHeadingInterpolation(Math.toRadians(235), Math.toRadians(0))
+                .addPath(new BezierLine(new Pose(86, 78), new Pose(86.447, 56.388)))
+                .setLinearHeadingInterpolation(Math.toRadians(233.), Math.toRadians(0))
                 .build();
     }
 }
