@@ -508,42 +508,42 @@ public class Red18 extends OpMode {
         // Old X: 14.500 -> New X: 129.500
         // Heading: 180 -> 0
         Path3 = follower.pathBuilder()
-                .addPath(new BezierLine(new Pose(99.495, 58), new Pose(123.00, 58)))
+                .addPath(new BezierLine(new Pose(99.495, 58), new Pose(125.00, 58)))
                 .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
                 .build();
 
         // Path 4 (To Shooting Spot)
         // Old X: 54 -> New X: 90
-        // Heading: 180 -> 0, -55 -> 231.5
+        // Heading: 180 -> 0, -55 -> 235.000
         Path4 = follower.pathBuilder()
                 .addPath(new BezierCurve(new Pose(123.0, 58), new Pose(86, 78)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(231.5))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235.000))
                 .build();
 
         // Path 5 (Cycle)
         // Control Old X: 40 -> New: 104
         // End Old X: 8 -> New: 136
-        // Heading: -55 -> 231.5, 160 -> 20
+        // Heading: -55 -> 235.000, 160 -> 20
         Path5 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(86, 78), new Pose(104.000, 21.5), new Pose(133.5, 52)))
-                .setLinearHeadingInterpolation(Math.toRadians(231.5), Math.toRadians(20))
+                .addPath(new BezierCurve(new Pose(86, 78), new Pose(104.000, 25), new Pose(131.725, 52.25)))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(20))
                 .build();
 
         // Path 6 (Return to Shoot)
         // Start Old X: 5 -> New: 139 (Assuming slight deviation catch-up)
         // End Old X: 54 -> New: 90
-        // Heading: 160 -> 20, -55 -> 231.5
+        // Heading: 160 -> 20, -55 -> 235.000
         Path6 = follower.pathBuilder()
-                .addPath(new BezierCurve(new Pose(133.5, 52), new Pose(86, 78)))
-                .setLinearHeadingInterpolation(Math.toRadians(20), Math.toRadians(231.5))
+                .addPath(new BezierCurve(new Pose(131.725, 52.25), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(20), Math.toRadians(235.000))
                 .build();
 
         // Path 7
         // End Old X: 46.602 -> New: 97.398
-        // Heading: -55 -> 231.5, 180 -> 0
+        // Heading: -55 -> 235.000, 180 -> 0
         Path7 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(86, 78), new Pose(97.398, 78.5)))
-                .setLinearHeadingInterpolation(Math.toRadians(231.5), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(0))
                 .build();
 
         // Path 8
@@ -557,18 +557,18 @@ public class Red18 extends OpMode {
         // Path 9
         // Start Old X: 24.0 -> New: 120.0
         // End Old X: 54 -> New: 90
-        // Heading: 180 -> 0, -55 -> 231.5
+        // Heading: 180 -> 0, -55 -> 235.000
         Path9 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(120.000, 78.5), new Pose(86, 78)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(231.5))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235.000))
                 .build();
 
         // Path 10
         // End Old X: 43.107 -> New: 100.893
-        // Heading: -55 -> 231.5, 180 -> 0
+        // Heading: -55 -> 235.000, 180 -> 0
         Path10 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(86, 78), new Pose(100.893, 36)))
-                .setLinearHeadingInterpolation(Math.toRadians(231.5), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(0))
                 .build();
 
         // Path 11
@@ -581,18 +581,18 @@ public class Red18 extends OpMode {
 
         // Path 12
         // End Old X: 54 -> New: 90
-        // Heading: 180 -> 0, -55 -> 231.5
+        // Heading: 180 -> 0, -55 -> 235.000
         Path12 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(127, 36), new Pose(86, 78)))
-                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(231.5))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235.000))
                 .build();
 
         // Path 13 (Park)
         // End Old X: 57.553 -> New: 86.447
-        // Heading: -55 -> 231.5, 180 -> 0
+        // Heading: -55 -> 235.000, 180 -> 0
         Path13 = follower.pathBuilder()
                 .addPath(new BezierLine(new Pose(86, 78), new Pose(86.447, 56.388)))
-                .setLinearHeadingInterpolation(Math.toRadians(233.), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(0))
                 .build();
     }
 }
