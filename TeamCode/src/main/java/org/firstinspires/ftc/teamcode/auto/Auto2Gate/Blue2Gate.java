@@ -511,10 +511,10 @@ public class Blue2Gate extends OpMode {
         Path4 = follower.pathBuilder().addPath(new BezierLine(new Pose(24.000, 87.500), new Pose(28.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-90)).build();
 
-        Path5 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(22.000, 80.000)))
+        Path5 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(21.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-90)).build();
 
-        Path6 = follower.pathBuilder().addPath(new BezierLine(new Pose(22.000, 80.000), new Pose(56.000, 80.500)))
+        Path6 = follower.pathBuilder().addPath(new BezierLine(new Pose(21.000, 80.000), new Pose(56.000, 80.500)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-51)).build();
 
         Path7 = follower.pathBuilder().addPath(new BezierLine(new Pose(56.000, 80.500), new Pose(44.505, 66.000)))
@@ -523,13 +523,13 @@ public class Blue2Gate extends OpMode {
         Path8 = follower.pathBuilder().addPath(new BezierLine(new Pose(44.505, 66.000), new Pose(18.000, 66.000)))
                 .setTangentHeadingInterpolation().build();
 
-        Path9 = follower.pathBuilder().addPath(new BezierCurve(new Pose(18.000, 66.000), new Pose(29.500, 66.000), new Pose(28.000, 80.000)))
+        Path9 = follower.pathBuilder().addPath(new BezierCurve(new Pose(18.000, 66.000), new Pose(29.500, 60.000), new Pose(28.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-90)).build();
 
-        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(22.000, 80.000)))
+        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(21.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-90)).build();
 
-        Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(22.000, 80.000), new Pose(56.000, 80.500)))
+        Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(21.000, 80.000), new Pose(56.000, 80.500)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-51)).build();
 
         Path12 = follower.pathBuilder().addPath(new BezierLine(new Pose(56.000, 80.500), new Pose(43.100, 44.000)))

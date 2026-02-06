@@ -522,11 +522,11 @@ public class Blue3Gate extends OpMode {
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-90)).build();
 
         // Path 5: OPEN DOOR (Hit)
-        Path5 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(22.000, 80.000)))
+        Path5 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(21.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-90)).build();
 
         // Path 6: Door -> Shoot Pos
-        Path6 = follower.pathBuilder().addPath(new BezierLine(new Pose(22.000, 80.000), new Pose(56.000, 80.500)))
+        Path6 = follower.pathBuilder().addPath(new BezierLine(new Pose(21.000, 80.000), new Pose(56.000, 80.500)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-51)).build();
 
         // Path 7: Shoot Pos -> Prep Row 2
@@ -538,15 +538,15 @@ public class Blue3Gate extends OpMode {
                 .setTangentHeadingInterpolation().build();
 
         // Path 9: Intake Row 2 -> Prep Door (Curved)
-        Path9 = follower.pathBuilder().addPath(new BezierCurve(new Pose(18.000, 66.000), new Pose(29.500, 66.000), new Pose(28.000, 80.000)))
+        Path9 = follower.pathBuilder().addPath(new BezierCurve(new Pose(18.000, 66.000), new Pose(29.500, 60.000), new Pose(28.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-90)).build();
 
         // Path 10: OPEN DOOR (Hit)
-        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(22.000, 80.000)))
+        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(21.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-90)).build();
 
         // Path 11: Door -> Shoot Pos
-        Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(22.000, 80.000), new Pose(56.000, 80.500)))
+        Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(21.000, 80.000), new Pose(56.000, 80.500)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-51)).build();
 
         // Path 12: Shoot Pos -> Prep Row 3
@@ -562,11 +562,11 @@ public class Blue3Gate extends OpMode {
                 .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-90)).build();
 
         // Path 15: OPEN DOOR (Hit)
-        Path15 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(22.000, 80.000)))
+        Path15 = follower.pathBuilder().addPath(new BezierLine(new Pose(28.000, 80.000), new Pose(21.000, 80.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-90)).build();
 
         // Path 16: Door -> Shoot Pos
-        Path16 = follower.pathBuilder().addPath(new BezierLine(new Pose(22.000, 80.000), new Pose(56.000, 80.500)))
+        Path16 = follower.pathBuilder().addPath(new BezierLine(new Pose(21.000, 80.000), new Pose(56.000, 80.500)))
                 .setLinearHeadingInterpolation(Math.toRadians(-90), Math.toRadians(-51)).build();
 
         // Path 17: Shoot Pos -> Park
