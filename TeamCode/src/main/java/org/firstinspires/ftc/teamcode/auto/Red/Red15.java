@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.Blue;
+package org.firstinspires.ftc.teamcode.auto.Red;
 
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierCurve;
@@ -18,8 +18,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.teamcode.drive.LedModuleDriver;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "蓝方15", group = "Main")
-public class Blue15 extends OpMode {
+@Autonomous(name = "红方15", group = "Main")
+public class Red15 extends OpMode {
 
     private Follower follower;
     private Timer pathTimer, cycleTimer, actionTimer;
@@ -84,7 +84,8 @@ public class Blue15 extends OpMode {
     private boolean isShootingTaskActive = false;
     private boolean isChassisPausedByShot = false;
 
-    private final Pose startPose = new Pose(27.495, 132.350, Math.toRadians(-36));
+    // 镜像起始位置: X = 144 - 27.495 = 116.505, Heading = 180 - (-36) = 216
+    private final Pose startPose = new Pose(116.505, 132.350, Math.toRadians(216));
     private PathChain Path1, Path2, Path3, Path4, Path5, Path6, Path7, Path8, Path9, Path10, Path11, Path12, Path13;
 
     @Override
@@ -113,7 +114,8 @@ public class Blue15 extends OpMode {
 
         led = hardwareMap.get(LedModuleDriver.class, "leddd");
         led.assignId(ID);
-        led.setWaveMode('A', 0xFF00FF, 0x00FFFF, 200, 60);
+        // 红方通常使用红色系波浪
+        led.setWaveMode('A', 0xFF0000, 0xFFA500, 200, 60);
 
         juju.setMode(DigitalChannel.Mode.INPUT);
         Mozart.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -130,7 +132,8 @@ public class Blue15 extends OpMode {
     @Override
     public void start() {
         setPathState(0);
-        setLightAnimation(C_BLUE, C_Indigo, 1.5);
+        // 修改初始灯光为红色系 (Red, Orange) 以匹配红方
+        setLightAnimation(C_RED, C_ORANGE, 1.5);
     }
 
     @Override
@@ -271,6 +274,7 @@ public class Blue15 extends OpMode {
             case 3:
                 if (!follower.isBusy()) {
                     targetShooterRPM = NormalShootingPower;
+                    // 红方可以用其他颜色，这里暂保持一致，或改为 Red/Orange
                     setLightAnimation(C_BLUE, C_Indigo, 1.5);
                     follower.setMaxPower(1);
                     follower.followPath(Path4, true);
@@ -437,7 +441,7 @@ public class Blue15 extends OpMode {
 
     private void runShootingSequence() {
         if (shootActionTimer.seconds() < shootTimeLimitSec) {
-            Intake.setPower(1.0); Mozart.setPower(0.85); Hold.setPower(-1.0);
+            Intake.setPower(1.0); Mozart.setPower(0.8); Hold.setPower(-1.0);
         } else {
             isShootingTaskActive = false;
             Intake.setPower(0); Mozart.setPower(0); Hold.setPower(0);
@@ -480,22 +484,111 @@ public class Blue15 extends OpMode {
     private double getShooterRPM() { return (SH.getVelocity() * 60.0) / TICKS_PER_REV; }
 
     public void buildPaths() {
-        Path1 = follower.pathBuilder().addPath(new BezierLine(new Pose(27.495, 132.350), new Pose(55.951, 93.204))).setLinearHeadingInterpolation(Math.toRadians(-36), Math.toRadians(-50)).build();                             //跑打第一段路径
-        Path2 = follower.pathBuilder().addPath(new BezierLine(new Pose(55.951, 93.204), new Pose(44.505, 66))).setLinearHeadingInterpolation(Math.toRadians(-50), Math.toRadians(180)).build();                                  //准备吸第二排
-        Path3 = follower.pathBuilder().addPath(new BezierLine(new Pose(44.505, 66), new Pose(15, 66))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(180)).build();                                          //吸第二排
+        // Path 1
+        // Old X: 54.951 -> New X: 144 - 54.951 = 89.049
+        // Old Heading: -36 -> New: 216, -40 -> New: 220
+        Path1 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(116.505, 132.350), new Pose(89.049, 93.204)))
+                .setLinearHeadingInterpolation(Math.toRadians(216), Math.toRadians(220))
+                .build();
 
-        Path4 = follower.pathBuilder().addPath(new BezierCurve(new Pose(14.500, 66), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-51.500)).build();                                     //发射
-        Path5 = follower.pathBuilder().addPath(new BezierCurve(new Pose(55, 77), new Pose(40.000, 25.000),new Pose(14.32, 61.45))).setLinearHeadingInterpolation(Math.toRadians(-51.500), Math.toRadians(160)).build();    //开门嘬
+        // Path 2
+        // Old X: 44.505 -> New X: 99.495
+        // Heading: -40 -> 220, 180 -> 0
+        Path2 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(89.049, 93.204), new Pose(99.495, 58)))
+                .setLinearHeadingInterpolation(Math.toRadians(220), Math.toRadians(0))
+                .build();
 
-        Path6 = follower.pathBuilder().addPath(new BezierCurve(new Pose(14.32, 61.45), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(160), Math.toRadians(-51.500)).build();                                   //发射
-        Path7 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(46.602, 86.5))).setLinearHeadingInterpolation(Math.toRadians(-51.500), Math.toRadians(180)).build();                                    //准备第一排
-        Path8 = follower.pathBuilder().addPath(new BezierLine(new Pose(46.602, 86.5), new Pose(23, 86.5))).setTangentHeadingInterpolation().build();                                                                             //吸第一排
+        // Path 3
+        // Old X: 14.500 -> New X: 129.500
+        // Heading: 180 -> 0
+        Path3 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(99.495, 58), new Pose(125.00, 58)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .build();
 
-        Path9 = follower.pathBuilder().addPath(new BezierLine(new Pose(24.000, 86.5), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-51.500)).build();                                    //发射
-        Path10 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(43.107, 44))).setLinearHeadingInterpolation(Math.toRadians(-51.500), Math.toRadians(180)).build();                                     //准备吸最后一排
-        Path11 = follower.pathBuilder().addPath(new BezierLine(new Pose(43.107, 44), new Pose(17, 44))).setTangentHeadingInterpolation().build();                                                                                //吸最后一排
+        // Path 4 (To Shooting Spot)
+        // Old X: 54 -> New X: 90
+        // Heading: 180 -> 0, -55 -> 235.000
+        Path4 = follower.pathBuilder()
+                .addPath(new BezierCurve(new Pose(123.0, 58), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235.000))
+                .build();
 
-        Path12 = follower.pathBuilder().addPath(new BezierLine(new Pose(17, 44), new Pose(55, 77))).setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(-51.500)).build();                                         //发射
-        Path13 = follower.pathBuilder().addPath(new BezierLine(new Pose(55, 77), new Pose(57.553, 56.388))).setLinearHeadingInterpolation(Math.toRadians(-51.500), Math.toRadians(180)).build();                                 //停靠
+        // Path 5 (Cycle)
+        // Control Old X: 40 -> New: 104
+        // End Old X: 8 -> New: 136
+        // Heading: -55 -> 235.000, 160 -> 20
+        Path5 = follower.pathBuilder()
+                .addPath(new BezierCurve(new Pose(86, 78), new Pose(104.000, 25), new Pose(131.725, 52.25)))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(20))
+                .build();
+
+        // Path 6 (Return to Shoot)
+        // Start Old X: 5 -> New: 139 (Assuming slight deviation catch-up)
+        // End Old X: 54 -> New: 90
+        // Heading: 160 -> 20, -55 -> 235.000
+        Path6 = follower.pathBuilder()
+                .addPath(new BezierCurve(new Pose(131.725, 52.25), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(20), Math.toRadians(235.000))
+                .build();
+
+        // Path 7
+        // End Old X: 46.602 -> New: 97.398
+        // Heading: -55 -> 235.000, 180 -> 0
+        Path7 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(86, 78), new Pose(97.398, 78.5)))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(0))
+                .build();
+
+        // Path 8
+        // End Old X: 22.5 -> New: 121.5
+        // Tangent
+        Path8 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(97.398, 78.5), new Pose(121, 78.5)))
+                .setTangentHeadingInterpolation()
+                .build();
+
+        // Path 9
+        // Start Old X: 24.0 -> New: 120.0
+        // End Old X: 54 -> New: 90
+        // Heading: 180 -> 0, -55 -> 235.000
+        Path9 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(120.000, 78.5), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235.000))
+                .build();
+
+        // Path 10
+        // End Old X: 43.107 -> New: 100.893
+        // Heading: -55 -> 235.000, 180 -> 0
+        Path10 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(86, 78), new Pose(100.893, 36)))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(0))
+                .build();
+
+        // Path 11
+        // End Old X: 17 -> New: 127
+        // Tangent
+        Path11 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(100.893, 36), new Pose(127, 36)))
+                .setTangentHeadingInterpolation()
+                .build();
+
+        // Path 12
+        // End Old X: 54 -> New: 90
+        // Heading: 180 -> 0, -55 -> 235.000
+        Path12 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(127, 36), new Pose(86, 78)))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(235.000))
+                .build();
+
+        // Path 13 (Park)
+        // End Old X: 57.553 -> New: 86.447
+        // Heading: -55 -> 235.000, 180 -> 0
+        Path13 = follower.pathBuilder()
+                .addPath(new BezierLine(new Pose(86, 78), new Pose(86.447, 56.388)))
+                .setLinearHeadingInterpolation(Math.toRadians(235.000), Math.toRadians(0))
+                .build();
     }
 }
